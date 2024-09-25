@@ -2,6 +2,15 @@
 
     zn "%SYS"
     Do ##class(Security.Users).UnExpireUserPasswords("*")
+     Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.Users", "RW")
+    Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.Boards", "RW")
+    Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.Cards", "RW")
+    Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.Lists", "RW")
+    Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.Tasks", "RW")
+    Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.Tokens", "RW")
+    Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.BoardAccess", "RW")
+    Do ##class(Security.Users).AddResource("UnknownUser", "MyApp.Permissions", "RW") 
+    
     zpm "install passwordless"
 
     zn "USER"
