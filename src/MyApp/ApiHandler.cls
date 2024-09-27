@@ -16,10 +16,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Route Url="/createcard" Method="POST" Call="CreateNewCard"/>
 <Route Url="/createchecklist" Method="POST" Call="CreateNewChecklist"/>
 <Route Url="/createtask" Method="POST" Call="CreateNewTask"/> 
-<Route Url="/getboardsfromuser" Method="POST" Call="GetBoardsFromUser"/>
-<Route Url="/getcardsfromboard" Method="POST" Call="GetCardsFromBoard"/>
-<Route Url="/getlistsfromcard" Method="POST" Call="GetListsFromCard"/>
-<Route Url="/gettaskfromlist" Method="POST" Call="GetTasksFromList"/> 
+<Route Url="/getuserboards" Method="POST" Call="GetUserBoards"/>
+<Route Url="/getboardcards" Method="POST" Call="GetBoardCards"/>
+<Route Url="/getcardlists" Method="POST" Call="GetCardLists"/>
+<Route Url="/getlisttasks" Method="POST" Call="GetListTasks"/> 
 <Route Url="/getallowedboards" Method="POST" Call="GetAllowedBoards"/>
 <Route Url="/deleteboard" Method="POST" Call="DeleteBoard"/>
 <Route Url="/deletecard" Method="POST" Call="DeleteCard"/>
@@ -52,6 +52,49 @@ ClassMethod GetTest()
 
 ClassMethod TaskCompleted()
 {
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 
+        {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        Set data = %request.Content
+        // Получение boardId на основе taskId
+        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByTask(data.taskId)
+        If boardId = "" {
+            Throw ##class(%Exception.General).%New("Board ID not found for the given task")
+        }
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 
+        {
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2)   
+            {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }
+        }
+        Set data=%request.Content
+        If $DATA(^MyApp.TasksD(data.taskId)) 
+        {
+            Set $LIST(^MyApp.TasksD(data.taskId), 3)=data.IsCompleted
+            Set $LIST(^MyApp.TasksD(data.taskId), 5)=$ZDATETIME($HOROLOG,3)
+            Return ..SendSuccessResponse("")
+        }
+        Else
+        {
+            Return ..SendErrorResponse("Task not found")
+        } 
+    } 
+    Catch ex 
+    {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+    /*
     Set authHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION")
     Set token = $PIECE(authHeader, " ", 2)
     Set respons = ##class(MyApp.Auth).IsAuth(token)
@@ -74,16 +117,22 @@ ClassMethod TaskCompleted()
     {
         Return ..SendErrorResponse("Invalid token")
     }
+    */
 }
 
-ClassMethod GetBoardsFromUser()
+ClassMethod GetUserBoards()
 {
-    Set userId=..IsAuth()
-    If userId '= 0 
-    {
+   Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 
+        {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
         Set data=%request.Content
         Set boardList = ##class(MyApp.GetFunctions).GetBoards(userId)
-        If boardList '=0
+       // If boardList '=0
+        If ($IsObject(boardList)) && (boardList.%Size() > 0)
         {
             Set data = {"boards":(boardList) }
             Return ..SendSuccessResponse(data)
@@ -92,15 +141,57 @@ ClassMethod GetBoardsFromUser()
         {
             Return ..SendErrorResponse("Boards not found")
         }
-    }
-    Else 
+    } 
+    Catch ex 
     {
-        Return ..SendErrorResponse("Invalid token")
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 
-ClassMethod GetCardsFromBoard() As %DynamicArray
+ClassMethod GetBoardCards() As %DynamicArray
 {
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 
+        {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        Set data = %request.Content
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, data.boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 
+        {
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, data.boardId)
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
+            {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }
+        }
+        
+        // Получение списка задач
+        Set cardList = ##class(MyApp.GetFunctions).GetCards(data.listId)
+        If ($IsObject(cardList)) && (cardList.%Size() > 0)
+        {
+            Set data = {"cards":(cardList) }
+            Return ..SendSuccessResponse(data)
+        }
+        Else 
+        {
+            Return ..SendErrorResponse("Cards not found")
+        }
+        // Успешное завершение
+        Return ..SendSuccessResponse("")
+    } 
+    Catch ex 
+    {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+    /*
     Set userId=..IsAuth()
     If userId '= 0 
     {
@@ -120,10 +211,57 @@ ClassMethod GetCardsFromBoard() As %DynamicArray
     {
         Return ..SendErrorResponse("Invalid token")
     }
+    */
 }
 
-ClassMethod GetListsFromCard() As %DynamicArray
+ClassMethod GetCardLists() As %DynamicArray
 {
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 
+        {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        Set data = %request.Content
+        // Получение boardId на основе taskId
+        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByCard(data.cardId)
+        If boardId = "" {
+            Throw ##class(%Exception.General).%New("Board ID not found for the given lists")
+        }
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 
+        {
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
+            {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }
+        }
+        
+        // Получение списка задач
+        Set checkList = ##class(MyApp.GetFunctions).GetLists(data.listId)
+        If ($IsObject(checkList)) && (checkList.%Size() > 0)
+        {
+            Set data = {"checklists":(checkList) }
+            Return ..SendSuccessResponse(data)
+        }
+        Else 
+        {
+            Return ..SendErrorResponse("Lists not found")
+        }
+        // Успешное завершение
+        Return ..SendSuccessResponse("")
+    } 
+    Catch ex 
+    {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+    /*
     Set userId=..IsAuth()
     If userId '= 0 
     {
@@ -143,28 +281,55 @@ ClassMethod GetListsFromCard() As %DynamicArray
     {
         Return ..SendErrorResponse("Invalid token")
     }
+    */
 }
 
-ClassMethod GetTasksFromList() As %DynamicArray
+ClassMethod GetListTasks() As %DynamicArray
 {
-    Set userId=..IsAuth()
-    If userId '= 0 
-    {   
-        Set data=%request.Content
-        Set taskList = ##class(MyApp.GetFunctions).GetTasks(data.listId)
-        If taskList '=0
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 
         {
-            Set data = {"tasks":(taskList) }
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        Set data = %request.Content
+        // Получение boardId на основе taskId
+        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByList(data.listId)
+        If boardId = "" {
+            Throw ##class(%Exception.General).%New("Board ID not found for the given task")
+        }
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 
+        {
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
+            {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }
+        }
+        
+        // Получение списка задач
+        Set taskList = ##class(MyApp.GetFunctions).GetTasks(data.listId)
+        If ($IsObject(taskList)) && (taskList.%Size() > 0)
+        {
+            Set data = {"tasks": (taskList)}
             Return ..SendSuccessResponse(data)
         }
-        Else
+        Else 
         {
             Return ..SendErrorResponse("Tasks not found")
         }
-    }
-    Else 
+        // Успешное завершение
+        Return ..SendSuccessResponse("")
+    } 
+    Catch ex 
     {
-        Return ..SendErrorResponse("Invalid token")
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 
@@ -195,27 +360,27 @@ ClassMethod DeleteBoard()
     Try {
         // Проверка аутентификации
         Set userId = ..IsAuth()
-        //write "userId ",userId,!
-        If userId = 0 {
+        If userId = 0 
+        {
             Throw ##class(%Exception.General).%New("Invalid token")
         }
-        // Получение данных из запроса
         Set data = %request.Content
         // Проверка прав владельца
         Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, data.boardId)
         // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 {
-           // Write "Is owner",isOwner,!
+        If isOwner '= 1 
+        {
             Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, data.boardId)
-            //Write "permission",CheckPermission,!
             // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+            If CheckPermission '= 1
+            {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }  
         }
        
         Set status=##class(MyApp.DeleteFunctions).DeleteBoard(data.boardId)
-        If $$$ISERR(status) {
+        If $$$ISERR(status) 
+        {
             Throw ##class(%Exception.General).%New("Failed to delete board")
         }
         // Успешное удаление
@@ -252,7 +417,8 @@ ClassMethod DeleteCard()
             Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
             //Write "permission",CheckPermission,!
             // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+            If CheckPermission '= 1
+            {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }  
         }
@@ -295,7 +461,8 @@ ClassMethod DeleteList()
             Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
             //Write "permission",CheckPermission,!
             // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+            If CheckPermission '= 1
+            {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }  
         }
@@ -333,7 +500,8 @@ ClassMethod DeleteTask()
         If isOwner '= 1 {
             Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
             // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+            If CheckPermission '= 1
+            {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }
         }
