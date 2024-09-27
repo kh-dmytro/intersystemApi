@@ -42,30 +42,30 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 
 ClassMethod GetTest()
 {
-    SET version = ..#Version
-    SET info = 
+    Set version = ..#Version
+    Set info = 
     {
     "version": (version)
     }
-    RETURN ..%ProcessResult($$$OK, info)
+    Return ..%ProcessResult($$$OK, info)
 }
 
 ClassMethod TaskCompleted()
 {
     Set authHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION")
-    Set token = $Piece(authHeader, " ", 2)
+    Set token = $PIECE(authHeader, " ", 2)
     Set respons = ##class(MyApp.Auth).IsAuth(token)
     If respons '= 0 
     {
         Set data=%request.Content
-        If $Data(^MyApp.TasksD(data.taskId)) 
+        If $DATA(^MyApp.TasksD(data.taskId)) 
         {
             Set $LIST(^MyApp.TasksD(data.taskId), 3)=data.IsCompleted
             Set $LIST(^MyApp.TasksD(data.taskId), 5)=$ZDATETIME($HOROLOG,3)
             
             Return ..SendSuccessResponse("")
         }
-        else
+        Else
         {
             Return ..SendErrorResponse("Task not found")
         } 
@@ -85,10 +85,10 @@ ClassMethod GetBoardsFromUser()
         Set boardList = ##class(MyApp.GetFunctions).GetBoards(userId)
         If boardList '=0
         {
-            SET data = {"boards":(boardList) }
+            Set data = {"boards":(boardList) }
             Return ..SendSuccessResponse(data)
         }
-        else
+        Else
         {
             Return ..SendErrorResponse("Boards not found")
         }
@@ -108,10 +108,10 @@ ClassMethod GetCardsFromBoard() As %DynamicArray
         Set cardList = ##class(MyApp.GetFunctions).GetCards(data.boardId)
         If cardList '=0
         {
-            SET data = {"cards":(cardList) }
+            Set data = {"cards":(cardList) }
             Return ..SendSuccessResponse(data)
         }
-        else
+        Else
         {
             Return ..SendErrorResponse("Cards not found")
         }
@@ -131,10 +131,10 @@ ClassMethod GetListsFromCard() As %DynamicArray
         Set checkList = ##class(MyApp.GetFunctions).GetLists(data.cardId)
         If checkList '=0
         {
-            SET data = {"checklists":(checkList) }
+            Set data = {"checklists":(checkList) }
             Return ..SendSuccessResponse(data)
         }
-        else
+        Else
         {
             Return ..SendErrorResponse("Check lists not found")
         }
@@ -154,10 +154,10 @@ ClassMethod GetTasksFromList() As %DynamicArray
         Set taskList = ##class(MyApp.GetFunctions).GetTasks(data.listId)
         If taskList '=0
         {
-            SET data = {"tasks":(taskList) }
+            Set data = {"tasks":(taskList) }
             Return ..SendSuccessResponse(data)
         }
-        else
+        Else
         {
             Return ..SendErrorResponse("Tasks not found")
         }
@@ -176,10 +176,10 @@ ClassMethod GetAllowedBoards()
         Set boardList = ##class(MyApp.GetFunctions).GetAllowedBoard(userId)
         If boardList '=0
         {
-            SET data = {"boards":(boardList) }
+            Set data = {"boards":(boardList) }
             Return ..SendSuccessResponse(data)
         }
-        else
+        Else
         {
             Return ..SendErrorResponse("Boards not found")
         }
@@ -192,86 +192,175 @@ ClassMethod GetAllowedBoards()
 
 ClassMethod DeleteBoard()
 {
-    Set userId=..IsAuth()
-    If userId '= 0 
-    {
-        Set data=%request.Content
-        Set status=##class(MyApp.DeleteFunctions).DeleteBoard(data.boardId)
-        if status = 1
-        {
-            Return ..SendSuccessResponse("")
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        //write "userId ",userId,!
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
         }
+        // Получение данных из запроса
+        Set data = %request.Content
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, data.boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 {
+           // Write "Is owner",isOwner,!
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, data.boardId)
+            //Write "permission",CheckPermission,!
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }  
+        }
+       
+        Set status=##class(MyApp.DeleteFunctions).DeleteBoard(data.boardId)
+        If $$$ISERR(status) {
+            Throw ##class(%Exception.General).%New("Failed to delete board")
+        }
+        // Успешное удаление
+        Return ..SendSuccessResponse("")
     }
-    Else 
-    {
-        Return ..SendErrorResponse("Invalid token")
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 
 ClassMethod DeleteCard()
 {
-    Set userId=..IsAuth()
-    If userId '= 0  
-    {
-        Set data=%request.Content
-        Set status=##class(MyApp.DeleteFunctions).DeleteCard(data.cardId)
-        if status = 1
-        {
-            Return ..SendSuccessResponse("")
+ Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        //write "userId ",userId,!
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
         }
+        // Получение данных из запроса
+        Set data = %request.Content
+        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByCard(data.cardId)
+        //write "board Id",boardId,!
+        If boardId = "" {
+            
+            Throw ##class(%Exception.General).%New("Board ID not found for the given card")
+        }
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 {
+           // Write "Is owner",isOwner,!
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
+            //Write "permission",CheckPermission,!
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }  
+        }
+       
+        Set status=##class(MyApp.DeleteFunctions).DeleteCard(data.cardId)
+        If $$$ISERR(status) {
+            Throw ##class(%Exception.General).%New("Failed to delete card")
+        }
+        // Успешное удаление
+        Return ..SendSuccessResponse("")
     }
-    Else 
-    {
-        Return ..SendErrorResponse("Invalid token")
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 
 ClassMethod DeleteList()
 {
-    Set userId=..IsAuth()
-    If userId '= 0  
-    {
-        Set data=%request.Content
-        Set status=##class(MyApp.DeleteFunctions).DeleteList(data.checklistId)
-        if status = 1
-        {
-            Return ..SendSuccessResponse("")
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        //write "userId ",userId,!
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
         }
+        // Получение данных из запроса
+        Set data = %request.Content
+        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByList(data.checklistId)
+        //write "board Id",boardId,!
+        If boardId = "" {
+            
+            Throw ##class(%Exception.General).%New("Board ID not found for the given list")
+        }
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 {
+           // Write "Is owner",isOwner,!
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
+            //Write "permission",CheckPermission,!
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }  
+        }
+       
+        Set status=##class(MyApp.DeleteFunctions).DeleteList(data.checklistId)
+        If $$$ISERR(status) {
+            Throw ##class(%Exception.General).%New("Failed to delete list")
+        }
+        // Успешное удаление
+        Return ..SendSuccessResponse("")
     }
-    Else 
-    {
-       Return ..SendErrorResponse("Invalid token")
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 
 ClassMethod DeleteTask()
 {
-    Set userId=..IsAuth()
-    If userId '= 0  
-    {
-        Set data=%request.Content
-        Set status=##class(MyApp.DeleteFunctions).DeleteTask(data.taskId)
-        if status = 1
-        {
-           Return ..SendSuccessResponse("")
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
         }
+        // Получение данных из запроса
+        Set data = %request.Content
+        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByTask(data.taskId)
+        If boardId = "" {
+            Throw ##class(%Exception.General).%New("Board ID not found for the given task")
+        }
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 {
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
+            // Проверка прав пользователя
+            If (CheckPermission '= 1) && (CheckPermission '= 2) {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }
+        }
+        // Удаление задачи
+        Set status = ##class(MyApp.DeleteFunctions).DeleteTask(data.taskId)
+        If $$$ISERR(status) {
+            Throw ##class(%Exception.General).%New("Failed to delete task")
+        }
+        // Успешное удаление
+        Return ..SendSuccessResponse("")
     }
-    Else 
-    {
-        Return ..SendErrorResponse("Invalid token")
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 
 ClassMethod CreateNewBord()
 {
     Set respons=..IsAuth()
-    if respons '= 0
+    If respons '= 0
     {
         Set data=%request.Content
         Set boardId = ##class(MyApp.CreateFunctions).CreateBord(respons,data.title,data.description)
-        if boardId '= 0 
+        If boardId '= 0 
         {
-            SET data = {"boardId":(boardId) }
+            Set data = {"boardId":(boardId) }
             Return ..SendSuccessResponse(data)
         }
         Else
@@ -279,7 +368,7 @@ ClassMethod CreateNewBord()
             Return ..SendErrorResponse("Failed to create board")    
         }
     }
-    else
+    Else
     {
         Return ..SendErrorResponse("Invalid token")
     }
@@ -288,13 +377,13 @@ ClassMethod CreateNewBord()
 ClassMethod CreateNewCard()
 {
     Set respons=..IsAuth()
-    if respons '= 0
+    If respons '= 0
     {
         Set data=%request.Content        
         Set cardId = ##class(MyApp.CreateFunctions).CreateCard(respons,data.boardId, data.title,data.description)
-        if cardId'= 0 
+        If cardId'= 0 
         {
-            SET data = {"cardId":(cardId) }
+            Set data = {"cardId":(cardId) }
             Return ..SendSuccessResponse(data)
         }
         Else
@@ -302,7 +391,7 @@ ClassMethod CreateNewCard()
             Return ..SendErrorResponse("Failed to create card")    
         }
     }
-    else
+    Else
     {
         Return ..SendErrorResponse("Invalid token")
     }
@@ -311,13 +400,13 @@ ClassMethod CreateNewCard()
 ClassMethod CreateNewChecklist()
 {
     Set userId=..IsAuth()
-    if userId '= 0
+    If userId '= 0
     {
         Set data=%request.Content
         Set checklistId = ##class(MyApp.CreateFunctions).CreateChecklist(data.cardId ,data.title ,data.description)
-        if checklistId '= 0
+        If checklistId '= 0
         {
-            If $IsObject(data.tasks) 
+            If $ISOBJECT(data.tasks) 
             {
                 Set taskList = ##class(%Library.DynamicArray).%New()
                 Set count = data.tasks.%Size() 
@@ -331,15 +420,15 @@ ClassMethod CreateNewChecklist()
                     }
                 }
             }
-            SET data = {"cahecklistId":(checklistId), "tasks":(taskList) }
+            Set data = {"cahecklistId":(checklistId), "tasks":(taskList) }
             Return ..SendSuccessResponse(data)
         }
-        else
+        Else
         {
             Return ..SendErrorResponse("Failed to create Checklist") 
         }
     }
-    else
+    Else
     {
          Return ..SendErrorResponse("Invalid token")
     }
@@ -348,29 +437,27 @@ ClassMethod CreateNewChecklist()
 ClassMethod CreateNewTask()
 {
     Set userId=..IsAuth()
-    if userId '= 0
+    If userId '= 0
     {
         Set data=%request.Content
-        If $IsObject(data.tasks) 
+        If $ISOBJECT(data.tasks) 
         {       
             Set taskList = ##class(%Library.DynamicArray).%New()
-            Set count = data.tasks.%Size() // Попробуем использовать %Size() для получения количества элементов
+            Set count = data.tasks.%Size() 
             For i=0:1:count-1 
             {
                 Set task = data.tasks.%Get(i)
-                Write "task :",task,!
                 Set taskId =##class(MyApp.CreateFunctions).CreateTask(data.checklistId,task)
-                write "task id ",taskId,!
                 If taskId '= 0
                 {
                     Do taskList.%Push(taskId)
                 }   
             }
-            SET data = {"tasks":(taskList) }
+            Set data = {"tasks":(taskList) }
             Return ..SendSuccessResponse(data) 
         }
     }
-    else
+    Else
     {
         Return ..SendErrorResponse("Invalid token") 
     }
@@ -383,11 +470,11 @@ ClassMethod UpdateUser()
     {
         Set data=%request.Content
         Set status=##class(MyApp.UpdateFunctions).UpdateUserData(userId,data.email,data.userName,data.firstName,data.lastName)
-        if status = $$$OK
+        If status = $$$OK
         {
             Return ..SendSuccessResponse("")
         }
-        else
+        Else
         {
              Return ..SendErrorResponse(status)
         }
@@ -405,11 +492,11 @@ ClassMethod UpdateBoard()
     {
         Set data=%request.Content
         Set status=##class(MyApp.UpdateFunctions).UpdateBoard(data.boardId,data.title,data.description)
-        if status = $$$OK
+        If status = $$$OK
         {
             Return ..SendSuccessResponse("")
         }
-        else
+        Else
         {
              Return ..SendErrorResponse(status)
         }
@@ -427,11 +514,11 @@ ClassMethod UpdateCard()
     {
         Set data=%request.Content
         Set status=##class(MyApp.UpdateFunctions).UpdateCard(data.cardId,data.title,data.description)
-        if status = $$$OK
+        If status = $$$OK
         {
             Return ..SendSuccessResponse("")
         }
-        else
+        Else
         {
              Return ..SendErrorResponse(status)
         }
@@ -449,9 +536,9 @@ ClassMethod UpdateCheckList()
     {
         Set data=%request.Content
         Set status=##class(MyApp.UpdateFunctions).UpdateList(data.checklistId,data.title,data.description)
-        if status = $$$OK
+        If status = $$$OK
         {
-            If $IsObject(data.tasks) 
+            If $ISOBJECT(data.tasks) 
             {
                 
                 Set count = data.tasks.%Size() 
@@ -463,7 +550,7 @@ ClassMethod UpdateCheckList()
             }
             Return ..SendSuccessResponse("")
         }
-        else
+        Else
         {
              Return ..SendErrorResponse(status)
         }
@@ -481,7 +568,7 @@ ClassMethod UpdateTasks()
     {
         Set data=%request.Content
         
-            If $IsObject(data.tasks) 
+            If $ISOBJECT(data.tasks) 
             {
                 Set count = data.tasks.%Size() 
                 For i=0:1:count-1 
@@ -505,21 +592,19 @@ ClassMethod ShareBorad()
     If userId '= 0  
     {      
         Set data=%request.Content
-        write "board id", data.boardId,!
-        write "email ",data.email,!
-        write "permissions", data.permission,!
+       
 
 
         Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
-         write "recipietn ",recipientId,!
-        if recipientId '=""
+        
+        If recipientId '=""
         { 
             Set isShared=##class(MyApp.CreateFunctions).CreateSharedBoard(userId,data.boardId,recipientId,data.permission)
-            if isShared '=0
+            If isShared '=0
             {
                 Return ..SendSuccessResponse("")
             }
-            else
+            Else
             {
                 Return ..SendErrorResponse(isShared)
             }
@@ -552,20 +637,20 @@ ClassMethod SendSuccessResponse(data As %DynamicObject)
 
 ClassMethod SendErrorResponse(error As %String) As %Status
 {
-    SET info = {"Success": "false","error": (error)}
-    RETURN ..%ProcessResult($$$OK, info)
+    Set info = {"Success": "false","error": (error)}
+    Return ..%ProcessResult($$$OK, info)
 }
 
 ClassMethod Auth()
 {
     Set authHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION")
-    Set token = $Piece(authHeader, " ", 2)
+    Set token = $PIECE(authHeader, " ", 2)
     Set respons=##class(MyApp.Auth).IsAuth(token)
-    if respons '= 0
+    If respons '= 0
     {
         Return ..SendSuccessResponse("")
     }
-    else
+    Else
     {
         Return ..SendErrorResponse("Invalid token") 
     }
@@ -574,30 +659,34 @@ ClassMethod Auth()
 ClassMethod IsAuth()
 {
     Set authHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION")
-    Set token = $Piece(authHeader, " ", 2)
+    Set token = $PIECE(authHeader, " ", 2)
     Set respons=##class(MyApp.Auth).IsAuth(token)
     Return respons
+}
+
+ClassMethod ChaeckPermission()
+{
 }
 
 ClassMethod GetUserName()
 {
     Set authHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION")
-    Set token = $Piece(authHeader, " ", 2)
+    Set token = $PIECE(authHeader, " ", 2)
     Set respons=##class(MyApp.Auth).IsAuth(token)
-    if respons '= 0
+    If respons '= 0
     {
         // Do ..SendSuccessResponse()
         Set userdata= ^MyApp.UsersD(respons)  
-        SET info = 
+        Set info = 
         {
             "Success": "true",
             "username": ($LIST(userdata, 2)),
             "email": ($LIST(userdata, 3)),
             "user_id":(respons)
         }
-        RETURN ..%ProcessResult($$$OK, info)
+        Return ..%ProcessResult($$$OK, info)
      }
-     else
+     Else
      {
         Return ..SendErrorResponse("Invalid token") 
      }
@@ -605,11 +694,13 @@ ClassMethod GetUserName()
 
 ClassMethod Login() As %Status
 {
+   
     Set data=%request.Content
     Set email =data.email
     Set pass=data.password
-    Set token = ##class(MyApp.Auth).Authenticate( email,pass)
-    if token '= 0
+    Set token = ##class(MyApp.Auth).Authenticate(email,pass)
+   
+    If token '= 0
     {
         Set result=
         {
@@ -626,13 +717,13 @@ ClassMethod Login() As %Status
 ClassMethod Logout()
 {
     Set authHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION")
-    Set token = $Piece(authHeader, " ", 2)
+    Set token = $PIECE(authHeader, " ", 2)
     Set status= ##class(MyApp.Tokens).InvalidateToken(token)
     If status = 1
     {
         Return ..SendSuccessResponse("")
     }
-    else
+    Else
     {
        Return ..SendErrorResponse("Invalid token")
     }
@@ -661,12 +752,12 @@ ClassMethod Registration() As %Status
 /// testREST general information
 ClassMethod GetInfo() As %Status
 {
-    SET version = ..#Version
-    SET info = 
+    Set version = ..#Version
+    Set info = 
     {
         "version": (version)
     }
-    RETURN ..%ProcessResult($$$OK, info)
+    Return ..%ProcessResult($$$OK, info)
 }
 
 /// Retreive all the records of MyApp.ApiHandler

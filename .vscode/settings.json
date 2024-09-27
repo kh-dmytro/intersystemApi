@@ -3,14 +3,14 @@
     "iris.script": "objectscript"
   },
   "objectscript.conn": {
-    "ns": "%SYS",
+    "ns": "USER",
     "username": "_SYSTEM",
     "password": "SYS",
     "docker-compose": {
       "service": "iris",
       "internalPort": 52773
     },
-    "active": false,
+    "active": true,
     "links": {
       "Swagger": "${serverUrl}/swagger-ui/index.html"
     },

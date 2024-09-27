@@ -12,7 +12,7 @@ ClassMethod GetUserData(userId As %Integer) As %DynamicObject
                 "username": ($LIST(userdata, 2)),
                 "email": ($LIST(userdata, 3)),
                 "firstName": ($LIST(userdata, 5)),
-                "lastName": ($LIST(userdata, 6)),
+                "lastName": ($LIST(userdata, 6)), 
                 "userId":(userId)
             }
             return data

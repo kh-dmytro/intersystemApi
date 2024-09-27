@@ -28,7 +28,7 @@ ClassMethod Authenticate(email As %String, pass As %String) As %Integer
 ClassMethod IsAuth(token As %String) As %Integer
 {
     Set userId=##class(MyApp.Tokens).IsTokenValid(token)
-
+    
     if userId '= 0
     {
         Quit userId

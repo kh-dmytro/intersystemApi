@@ -13,7 +13,7 @@ ClassMethod DeleteBoard(boardId As %Integer)
             {
                 return 0
             }
-        }
+        } 
         Kill ^MyApp.BoardsD(boardId)
         If '$Data(^MyApp.BoardsD(boardId)) {
             Return 1
