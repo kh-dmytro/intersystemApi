@@ -28,7 +28,7 @@ ClassMethod CreateUser(email As %String, pass As %String, userName As %String, f
     }
 }
 
-ClassMethod CreateBord(ownerId As %Integer, title As %String, description As %String) As %Status
+ClassMethod CreateBoard(ownerId As %Integer, title As %String, description As %String) As %Status
 {
         Set newBoard=##class(MyApp.Boards).%New()
         Set newBoard.Title=title

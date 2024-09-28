@@ -23,7 +23,7 @@ ClassMethod CheckUserOwner(userId As %Integer, boardId As %Integer, permission A
     }
     Else 
     {
-        Write "Board not found", !
+        Return 0
     }
 }
 
