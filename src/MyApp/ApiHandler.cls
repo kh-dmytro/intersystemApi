@@ -675,7 +675,7 @@ ClassMethod CreateNewCard()
         {
             Throw ##class(%Exception.General).%New("Wrong board Id")
         }
-        If '$Data(^MyApp.BoardD(data.boardId)) 
+        If '$Data(^MyApp.BoardsD(data.boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
@@ -784,7 +784,7 @@ ClassMethod CreateNewChecklist()
                     }
                 }
             }
-            Set data = {"cahecklistId":(checklistId), "tasks":(taskList) }
+            Set data = {"checklistId":(checklistId), "tasks":(taskList) }
             Return ..SendSuccessResponse(data)
         }
         Else
@@ -954,7 +954,7 @@ ClassMethod UpdateBoard()
         Set data = %request.Content
         // Проверка прав владельца
         Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, data.boardId)
-        If '$Data(^MyApp.BoardD(data.boardId)) 
+        If '$Data(^MyApp.BoardsD(data.boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
@@ -1260,10 +1260,15 @@ ClassMethod ShareBoard()
         {
             Throw ##class(%Exception.General).%New("Wrong  Board ID")
         }
+        If 'data.permission
+        {
+            Throw ##class(%Exception.General).%New("Wrong  Permission")
+        }
         If '$Data(^MyApp.BoardsD(data.boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
+        
         // Проверка прав владельца
         Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, data.boardId)
         // Если не владелец, проверяем другие права доступа
@@ -1279,14 +1284,18 @@ ClassMethod ShareBoard()
         Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
         If recipientId '=""
         { 
-            Set isShared=##class(MyApp.CreateFunctions).CreateSharedBoard(userId,data.boardId,recipientId,data.permission)
-            If isShared '=0
+            if ..isBoardShared(recipientId,data.boardId) = 1
+            {
+                Throw ##class(%Exception.General).%New("You have already shared the board with "_data.email)
+            }
+            Set status=##class(MyApp.CreateFunctions).CreateSharedBoard(userId,data.boardId,recipientId,data.permission)
+            If status '=0
             {
                 Return ..SendSuccessResponse("")
             }
             Else
             {
-                Return ..SendErrorResponse(isShared)
+                Return ..SendErrorResponse(status)
             }
         }
         Else
@@ -1298,38 +1307,19 @@ ClassMethod ShareBoard()
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-    /*
-    Set userId=..IsAuth()
-    If userId '= 0  
-    {      
-        Set data=%request.Content
-       
+}
 
-
-        Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
-        If recipientId '=""
-        { 
-            Set isShared=##class(MyApp.CreateFunctions).CreateSharedBoard(userId,data.boardId,recipientId,data.permission)
-            If isShared '=0
-            {
-                Return ..SendSuccessResponse("")
-            }
-            Else
-            {
-                Return ..SendErrorResponse(isShared)
-            }
-        }
-        Else
-        {
-           Return ..SendErrorResponse("Recipient not found")
-        }
-    
-    }
-    Else 
+ClassMethod isBoardShared(userId As %Integer, boardId As %Integer) As %Boolean
+{
+    Set result = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.BoardAccess WHERE BoardId = ? AND UserId = ?", boardId, userId)
+    If result.%Next() 
     {
-       Return ..SendErrorResponse("Invalid token")
+        Return 1
     }
-    */
+    else
+    {
+        Return 0
+    }
 }
 
 ClassMethod SendSuccessResponse(data As %DynamicObject)
