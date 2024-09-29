@@ -13,7 +13,12 @@ ClassMethod DeleteBoard(boardId As %Integer)
             {
                 return 0
             }
-        } 
+        }
+        Set result = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.BoardAccess WHERE BoardId = ? ", boardId)
+        If result.%Next() 
+        {
+            Kill ^MyApp.BoardAccessD(result.ID)
+        }
         Kill ^MyApp.BoardsD(boardId)
         If '$Data(^MyApp.BoardsD(boardId)) {
             Return 1

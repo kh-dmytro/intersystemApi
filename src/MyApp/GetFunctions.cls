@@ -118,13 +118,14 @@ ClassMethod GetAllowedBoard(userId As %Integer)
 {
    
    
-    Set allowedBoard = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID, BoardId, PermissionId	 FROM MyApp.BoardAccess WHERE UserId = ?", userId)
+    Set allowedBoard = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID, BoardId, PermissionId, GrantedBy	 FROM MyApp.BoardAccess WHERE UserId = ?", userId)
     Set boardList = ##class(%Library.DynamicArray).%New()
     While allowedBoard.%Next() 
         {
             Set boardData=^MyApp.BoardsD(allowedBoard.BoardId)
             Set board = ##class(%Library.DynamicObject).%New()
             Do board.%Set("boardId", allowedBoard.BoardId)
+            Do board.%Set("owner", $LIST(^MyApp.UsersD(allowedBoard.GrantedBy), 3))
             Do board.%Set("permission", allowedBoard.PermissionId)
             Do board.%Set("title", $LIST(boardData, 2))
             Do board.%Set("description", $LIST(boardData, 3))

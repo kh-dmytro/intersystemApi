@@ -45,16 +45,30 @@ ClassMethod Authenticate(email As %String, pass As %String) As %Integer
        // Quit userId
         
         // Получаем запись пользователя
-        Set userRecord = ^MyApp.UsersD(userId)
-        Set storedPassword = $LIST(userRecord, 4)  
+        
         // Проверяем хэш пароля
-        If ..HashPassword(pass) = storedPassword 
+        If ..CheckPass(userId,pass) = 1 
         {
             // Генерируем и возвращаем токен для успешной аутентификации
             Set token = ##class(MyApp.Tokens).CreateNewToken(userId)
             Return token
         } Else {
             Return "Invalid password"
+        }
+}
+
+ClassMethod CheckPass(userId As %Integer, pass As %String) As %Boolean
+{
+       
+        Set userRecord = ^MyApp.UsersD(userId)
+        Set storedPassword = $LIST(userRecord, 4)  
+        If ..HashPassword(pass) = storedPassword 
+        {
+                Return 1
+        }
+        else
+        {
+                return 0
         }
 }
 

@@ -1,12 +1,16 @@
 Class MyApp.UpdateFunctions
 {
 
-ClassMethod UpdateUserData(userId As %Integer, email As %String, userName As %String, firstName As %String, lastName As %String)
+ClassMethod UpdateUserData(userId As %Integer, email As %String, userName As %String, firstName As %String, lastName As %String, password As %String)
 {
         If $Data(^MyApp.UsersD(userId)) 
         {
             Set $LIST(^MyApp.UsersD(userId), 2)=userName
             Set $LIST(^MyApp.UsersD(userId), 3)=email
+            If password '=""
+            {
+                Set $LIST(^MyApp.UsersD(userId), 4)=##class(MyApp.Users).HashPassword(password)
+            }
             Set $LIST(^MyApp.UsersD(userId), 5)=firstName
             Set $LIST(^MyApp.UsersD(userId), 6)=lastName
             Return $$$OK

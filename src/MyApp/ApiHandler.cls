@@ -6,38 +6,12 @@ Parameter Version = 1.0;
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
-<!-- Server Info -->
-<!--<Route Url="/" Method="GET" Call="GetInfo" Cors="true"/>
-<Route Url="/login" Method="POST" Call="Login"/>
-<Route Url="/logout" Method="POST" Call="Logout"/>  
-<Route Url="/registration" Method="POST" Call="Registration"/>
-<Route Url="/getusername" Method="GET" Call="GetUserName"/>
-<Route Url="/createboard" Method="POST" Call="CreateNewBord"/>
-<Route Url="/createcard" Method="POST" Call="CreateNewCard"/>
-<Route Url="/createchecklist" Method="POST" Call="CreateNewChecklist"/>
-<Route Url="/createtask" Method="POST" Call="CreateNewTask"/> 
-<Route Url="/getuserboards" Method="POST" Call="GetUserBoards"/>
-<Route Url="/getboardcards" Method="POST" Call="GetBoardCards"/>
-<Route Url="/getcardlists" Method="POST" Call="GetCardLists"/>
-<Route Url="/getlisttasks" Method="POST" Call="GetListTasks"/> 
-<Route Url="/getallowedboards" Method="POST" Call="GetAllowedBoards"/>
-<Route Url="/deleteboard" Method="POST" Call="DeleteBoard"/>
-<Route Url="/deletecard" Method="POST" Call="DeleteCard"/>
-<Route Url="/deletelist" Method="POST" Call="DeleteList"/>
-<Route Url="/deletetask" Method="POST" Call="DeleteTask"/>
-<Route Url="/taskcompleted" Method="POST" Call="TaskCompleted"/>
-<Route Url="/updateuser" Method="POST" Call="UpdateUser"/>
-<Route Url="/updateboard" Method="POST" Call="UpdateBoard"/>
-<Route Url="/updatecard" Method="POST" Call="UpdateCard"/>
-<Route Url="/updatechecklist" Method="POST" Call="UpdateCheckList"/>
-<Route Url="/updatetasks" Method="POST" Call="UpdateTasks"/>
-<Route Url="/shareboard" Method="POST" Call="ShareBorad"/>
--->
+
 <Route Url="/" Method="GET" Call="GetInfo" Cors="true"/>
 <Route Url="/login" Method="POST" Call="Login"/>
 <Route Url="/logout" Method="POST" Call="Logout"/>  
 <Route Url="/register" Method="POST" Call="Registration"/>  <!-- изменение на более распространённый "register" -->
-<Route Url="/username" Method="GET" Call="GetUserName"/>  <!-- изменение на REST стиль -->
+<Route Url="/userdata" Method="GET" Call="GetUserData"/>  <!-- изменение на REST стиль -->
 <!-- Работа с досками -->
 <Route Url="/boards" Method="POST" Call="GetUserBoards"/>  <!-- получение всех досок пользователя -->
 <Route Url="/boards/create" Method="POST" Call="CreateNewBoard"/>  <!-- создание новой доски -->
@@ -891,54 +865,41 @@ ClassMethod CreateNewTask()
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-    /*
-    Set userId=..IsAuth()
-    If userId '= 0
-    {
-        Set data=%request.Content
-        If $ISOBJECT(data.tasks) 
-        {       
-            Set taskList = ##class(%Library.DynamicArray).%New()
-            Set count = data.tasks.%Size() 
-            For i=0:1:count-1 
-            {
-                Set task = data.tasks.%Get(i)
-                Set taskId =##class(MyApp.CreateFunctions).CreateTask(data.checklistId,task)
-                If taskId '= 0
-                {
-                    Do taskList.%Push(taskId)
-                }   
-            }
-            Set data = {"tasks":(taskList) }
-            Return ..SendSuccessResponse(data) 
-        }
-    }
-    Else
-    {
-        Return ..SendErrorResponse("Invalid token") 
-    }
-    */
 }
 
 ClassMethod UpdateUser()
 {
-    Set userId=..IsAuth()
-    If userId '= 0  
+    Try 
     {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        Set password=""
         Set data=%request.Content
-        Set status=##class(MyApp.UpdateFunctions).UpdateUserData(userId,data.email,data.userName,data.firstName,data.lastName)
+        if (data.oldPassword '= "") && (data.newPassword '="")
+        {
+            Set checkPass=##class(MyApp.Users).CheckPass(userId,data.oldPassword)
+            if checkPass =0
+            {
+                Throw ##class(%Exception.General).%New("Wrong password")
+            }
+            Set password=data.newPassword
+        }
+        Set status=##class(MyApp.UpdateFunctions).UpdateUserData(userId,data.email,data.userName,data.firstName,data.lastName,password)
         If status = $$$OK
         {
             Return ..SendSuccessResponse("")
         }
         Else
         {
-             Return ..SendErrorResponse(status)
+            Throw ##class(%Exception.General).%New(status)
         }
     }
-    Else 
-    {
-       Return ..SendErrorResponse("Invalid token")
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 
@@ -1051,26 +1012,6 @@ ClassMethod UpdateCard()
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-    /*
-    Set userId=..IsAuth()
-    If userId '= 0  
-    {
-        Set data=%request.Content
-        Set status=##class(MyApp.UpdateFunctions).UpdateCard(data.cardId,data.title,data.description)
-        If status = $$$OK
-        {
-            Return ..SendSuccessResponse("")
-        }
-        Else
-        {
-             Return ..SendErrorResponse(status)
-        }
-    }
-    Else 
-    {
-       Return ..SendErrorResponse("Invalid token")
-    }
-    */
 }
 
 ClassMethod UpdateChecklist()
@@ -1131,36 +1072,6 @@ ClassMethod UpdateChecklist()
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-    /*
-    Set userId=..IsAuth()
-    If userId '= 0  
-    {
-        Set data=%request.Content
-        Set status=##class(MyApp.UpdateFunctions).UpdateList(data.checklistId,data.title,data.description)
-        If status = $$$OK
-        {
-            If $ISOBJECT(data.tasks) 
-            {
-                
-                Set count = data.tasks.%Size() 
-                For i=0:1:count-1 
-                {
-                    Set task = data.tasks.%Get(i)
-                    Set taskId =##class(MyApp.UpdateFunctions).UpdateTask(task.taskId,task.title)
-                }
-            }
-            Return ..SendSuccessResponse("")
-        }
-        Else
-        {
-             Return ..SendErrorResponse(status)
-        }
-    }
-    Else 
-    {
-       Return ..SendErrorResponse("Invalid token")
-    }
-    */
 }
 
 ClassMethod UpdateTasks()
@@ -1220,30 +1131,6 @@ ClassMethod UpdateTasks()
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-
-    /*
-    Set userId=..IsAuth()
-    If userId '= 0  
-    {
-        Set data=%request.Content
-        
-            If $ISOBJECT(data.tasks) 
-            {
-                Set count = data.tasks.%Size() 
-                For i=0:1:count-1 
-                {
-                    Set task = data.tasks.%Get(i)
-                    Set taskId =##class(MyApp.UpdateFunctions).UpdateTask(task.taskId,task.title)
-                }
-            }
-            Return ..SendSuccessResponse("")
-        
-    }
-    Else 
-    {
-       Return ..SendErrorResponse("Invalid token")
-    }
-    */
 }
 
 ClassMethod ShareBoard()
@@ -1365,7 +1252,7 @@ ClassMethod IsAuth()
     Return respons
 }
 
-ClassMethod GetUserName()
+ClassMethod GetUserData()
 {
     Set authHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION")
     Set token = $PIECE(authHeader, " ", 2)
@@ -1379,6 +1266,8 @@ ClassMethod GetUserName()
             "Success": "true",
             "username": ($LIST(userdata, 2)),
             "email": ($LIST(userdata, 3)),
+            "firstName": ($LIST(userdata, 5)),
+            "lastName": ($LIST(userdata, 6)),
             "user_id":(respons)
         }
         Return ..%ProcessResult($$$OK, info)
