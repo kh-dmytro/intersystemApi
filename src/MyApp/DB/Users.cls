@@ -72,6 +72,23 @@ ClassMethod CheckPass(userId As %Integer, pass As %String) As %Boolean
         }
 }
 
+Method UpdateUserData(userName As %String, email As %String, password As %String = "", firstName As %String = "", lastName As %String = "") As %Status
+{
+         // Обновляем значения свойств
+        Set ..UserName = userName
+        Set ..Email = email
+        Set ..FirstName = firstName
+        Set ..LastName = lastName
+
+        // Обновляем пароль, если он передан
+        If password '= "" {
+            Set ..Password = ..HashPassword(password)
+        }
+
+        // Сохраняем изменения
+        Return ..%Save()
+}
+
 Storage Default
 {
 <Data name="UsersDefaultData">

@@ -6,6 +6,11 @@ ClassMethod UpdateUserData(userId As %Integer, email As %String, userName As %St
         If $Data(^MyApp.UsersD(userId)) 
         {
             Set $LIST(^MyApp.UsersD(userId), 2)=userName
+            Set checkEmail=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_email, "U"), ""))
+            if checkEmail '=""
+            {
+                return "Email already exists"
+            }
             Set $LIST(^MyApp.UsersD(userId), 3)=email
             If password '=""
             {
