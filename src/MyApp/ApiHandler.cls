@@ -31,7 +31,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Route Url="/checklists/:checklistId" Method="DELETE" Call="DeleteChecklist"/>  <!-- удаление чеклиста -->
 <!-- Работа с задачами -->
 <Route Url="/checklists/:checklistId/tasks" Method="GET" Call="GetListTasks"/>  <!-- получение задач для чеклиста -->
- <Route Url="/checklists/:checklistId/tasks" Method="POST" Call="CreateNewTask"/>   <!-- создание новой задачи -->
+<Route Url="/checklists/:checklistId/tasks" Method="POST" Call="CreateNewTask"/>   <!-- создание новой задачи -->
 <Route Url="/tasks/update" Method="POST" Call="UpdateTasks"/>  <!-- обновление задачи -->
 <Route Url="/tasks/:taskId" Method="DELETE" Call="DeleteTask"/>  <!-- удаление задачи -->
 <Route Url="/tasks/:taskId/complete" Method="PUT" Call="TaskCompleted"/>  
@@ -39,10 +39,9 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Route Url="/users/update" Method="POST" Call="UpdateUser"/>  <!-- обновление пользователя -->
 <!-- Шаринг досок -->
 <Route Url="/boards/:boardId/share" Method="POST" Call="ShareBoard"/>  <!-- расшаривание доски для других пользователей -->
-
-
-
-
+<Route Url="/boards/:boardId/share" Method="PUT" Call="UpdateSharedBoard"/> 
+<Route Url="/boards/:boardId/share" Method="DELETE" Call="DeleteAccess"/> 
+<Route Url="/boards/shared-by-me" Method="GET" Call="GetBoardsSharedByMe"/>
 <Route Url="/auth" Method="POST" Call="Auth"/>
 <!-- Swagger specs -->
 <Route Url="/_spec" Method="GET" Call="SwaggerSpec" />  
@@ -319,6 +318,36 @@ ClassMethod GetAllowedBoards()
     }
 }
 
+ClassMethod GetBoardsSharedByMe()
+{
+    Try {
+     // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 
+        {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        // Получение списка 
+        Set sharedInfo = ##class(MyApp.GetFunctions).GetSharedList(userId)
+        If ($IsObject(sharedInfo)) && (sharedInfo.%Size() > 0)
+        {
+            Set data = {"sharedInfo":(sharedInfo) }
+            Return ..SendSuccessResponse(data)
+        }
+        Else 
+        {
+            Return ..SendErrorResponse("You have not shared board")
+        }
+        // Успешное завершение
+        Return ..SendSuccessResponse("")
+    } 
+    Catch ex 
+    {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+}
+
 ClassMethod DeleteBoard(boardId As %Integer)
 {
     Try {
@@ -501,6 +530,48 @@ ClassMethod DeleteTask(taskId As %Integer)
         }
         // Успешное удаление
         Return ..SendSuccessResponse("")
+    }
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+}
+
+ClassMethod DeleteAccess(accessId As %Integer)
+{
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        If 'accessId
+        {
+            Throw ##class(%Exception.General).%New("Wrong access Id")
+        }
+        Set access = ##class(MyApp.BoardAccess).%OpenId(accessId)
+        If access = ""
+        {   
+            Throw ##class(%Exception.General).%New("access not found")
+        }
+   
+        
+        If access.GrantedBy '= userId 
+        {
+            if (access.UserId '= userId) && (access.PermissionId '= 1)
+            {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }
+        }
+        Kill ^MyApp.BoardAccessD(accessId)
+        If '$Data(^MyApp.BoardAccessD(accessId)) 
+        {
+            Return ..SendSuccessResponse("")
+        } 
+        Else 
+        {
+          Throw ##class(%Exception.General).%New("Failed to delete task")
+        }
     }
     Catch ex {
         // Логирование ошибки и возврат ответа
@@ -1068,6 +1139,66 @@ ClassMethod UpdateTasks()
 
     // Успешное завершение
     Return ..SendSuccessResponse("")
+    }
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+}
+
+ClassMethod UpdateSharedBoard(accessId As %Integer)
+{
+     Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        // Получение данных из запроса
+        Set data = %request.Content
+
+        
+        If 'accessId
+        {
+            Throw ##class(%Exception.General).%New("Wrong board id parameter")
+        }
+        Set board = ##class(MyApp.BoardAccess).%OpenId(accessId)
+        If board = ""
+        {
+            Throw ##class(%Exception.General).%New("Board not found")
+        }
+      
+        // Проверка прав владельца
+        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, data.boardId)
+        // Если не владелец, проверяем другие права доступа
+        If isOwner '= 1 
+        {
+            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, data.boardId)
+            // Проверка прав пользователя
+            If CheckPermission '= 1
+            {
+                Throw ##class(%Exception.General).%New("User does not have permission")
+            }
+        }
+       // Обновление информации о пользователе
+       Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
+        If recipientId '=""
+        { 
+            Set status = board.UpdateAccessData(recipientId,data.permission)
+            
+            If $$$ISERR(status) 
+            {
+                Throw ##class(%Exception.General).%New("Error updating user: "_ status)
+            } 
+            Else 
+            {
+                Return ..SendSuccessResponse("")
+            }
+        }
+        else
+        {
+            Throw ##class(%Exception.General).%New("Recipient not found")
+        }
     }
     Catch ex {
         // Логирование ошибки и возврат ответа

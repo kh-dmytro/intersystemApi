@@ -20,6 +20,15 @@ Method %OnNew() As %Status
     Quit $$$OK
 }
 
+Method UpdateAccessData(userId As %String, permissionId As %String) As %Status
+{
+         // Обновляем значения свойств
+        Set ..UserId = userId
+        Set ..PermissionId = permissionId
+        // Сохраняем изменения
+        Return ..%Save()
+}
+
 Storage Default
 {
 <Data name="BoardAccessDefaultData">

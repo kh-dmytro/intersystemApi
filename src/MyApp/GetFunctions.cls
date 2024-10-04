@@ -142,4 +142,29 @@ ClassMethod GetAllowedBoard(userId As %Integer)
         }
 }
 
+ClassMethod GetSharedList(userId As %Integer)
+{
+     Set resultSet = ##class(%SQL.Statement).%ExecDirect(,"SELECT ba.ID, ba.BoardId, b.Title, u.Email, p.Name FROM MyApp.BoardAccess ba JOIN MyApp.Boards b ON ba.BoardId = b.ID JOIN MyApp.Users u ON ba.UserId = u.ID JOIN MyApp.Permissions p ON ba.PermissionId = p.ID WHERE ba.GrantedBy = ?", userId)
+        Set sharedInfo = ##class(%Library.DynamicArray).%New()
+        While resultSet.%Next() 
+        {
+            Set info = ##class(%Library.DynamicObject).%New()
+            Do info.%Set("accessId", resultSet.ID)
+            Do info.%Set("boardId", resultSet.BoardId)
+            Do info.%Set("title", resultSet.Title)
+            Do info.%Set("email", resultSet.Email)
+            
+            Do info.%Set("permission", resultSet.Name)
+            Do sharedInfo.%Push(info)
+        }
+        If sharedInfo.%Size() = 0 
+        {
+            Return 0
+        }
+        else
+        {  
+            RETURN sharedInfo
+        }
+}
+
 }
