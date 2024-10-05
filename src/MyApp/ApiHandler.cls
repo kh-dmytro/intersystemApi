@@ -76,22 +76,10 @@ ClassMethod TaskCompleted(taskId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Task not found")
         }
-        // Получение boardId на основе taskId
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByTask(taskId)
-        If boardId = "" {
-            Throw ##class(%Exception.General).%New("Board ID not found for the given task")
-        }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("task",userId, taskId)
+        If (CheckPermission '= 1) && (CheckPermission '= 2)   
         {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2)   
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
         Set data=%request.Content
         If $DATA(^MyApp.TasksD(taskId)) 
@@ -155,18 +143,11 @@ ClassMethod GetBoardCards(boardId As %Integer) As %DynamicArray
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, boardId)
+        If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
         {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
-        
         // Получение списка задач
         Set cardList = ##class(MyApp.GetFunctions).GetCards(boardId)
         If ($IsObject(cardList)) && (cardList.%Size() > 0)
@@ -202,23 +183,12 @@ ClassMethod GetCardLists(cardId As %Integer) As %DynamicArray
         {
             Throw ##class(%Exception.General).%New("Card not found")
         }
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByCard(cardId)
-        If boardId = "" {
-            Throw ##class(%Exception.General).%New("Board ID not found for the given lists")
-        }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("card",userId, cardId)
+        If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
         {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
-        
+
         // Получение списка задач
         Set checkList = ##class(MyApp.GetFunctions).GetLists(cardId)
         If ($IsObject(checkList)) && (checkList.%Size() > 0)
@@ -257,24 +227,11 @@ ClassMethod GetListTasks(checklistId As %Integer) As %DynamicArray
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
-        // Получение boardId на основе taskId
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByList(checklistId)
-        If boardId = "" {
-            Throw ##class(%Exception.General).%New("Board ID not found for the given task")
-        }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("list",userId, checklistId)
+        If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
         {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2)  && (CheckPermission '= 3) 
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
-        
         // Получение списка задач
         Set taskList = ##class(MyApp.GetFunctions).GetTasks(checklistId)
         If ($IsObject(taskList)) && (taskList.%Size() > 0)
@@ -363,18 +320,11 @@ ClassMethod DeleteBoard(boardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
+         Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, boardId)
+        If CheckPermission '= 1
         {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If CheckPermission '= 1
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }  
-        }
-       
+            Throw ##class(%Exception.General).%New("User does not have permission")
+        }  
         Set status=##class(MyApp.DeleteFunctions).DeleteBoard(boardId)
         If $$$ISERR(status) 
         {
@@ -408,26 +358,12 @@ ClassMethod DeleteCard(cardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Card not found")
         }
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByCard(cardId)
-        //write "board Id",boardId,!
-        If boardId = "" {
-            
-            Throw ##class(%Exception.General).%New("Board ID not found for the given card")
-        }
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("card",userId, cardId)
+        If CheckPermission '= 1
+        {
+            Throw ##class(%Exception.General).%New("User does not have permission")
+        }  
         
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 {
-           // Write "Is owner",isOwner,!
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            //Write "permission",CheckPermission,!
-            // Проверка прав пользователя
-            If CheckPermission '= 1
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }  
-        }
        
         Set status=##class(MyApp.DeleteFunctions).DeleteCard(cardId)
         If $$$ISERR(status) {
@@ -459,26 +395,11 @@ ClassMethod DeleteChecklist(checklistId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByList(checklistId)
-        //write "board Id",boardId,!
-        If boardId = "" {
-            
-            Throw ##class(%Exception.General).%New("Board ID not found for the given list")
-        }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 {
-           // Write "Is owner",isOwner,!
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            //Write "permission",CheckPermission,!
-            // Проверка прав пользователя
-            If CheckPermission '= 1
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }  
-        }
-       
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("list",userId, checklistId)
+        If CheckPermission '= 1
+        {
+            Throw ##class(%Exception.General).%New("User does not have permission")
+        }  
         Set status=##class(MyApp.DeleteFunctions).DeleteList(checklistId)
         If $$$ISERR(status) {
             Throw ##class(%Exception.General).%New("Failed to delete list")
@@ -508,20 +429,10 @@ ClassMethod DeleteTask(taskId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Task not found")
         }
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByTask(taskId)
-        If boardId = "" {
-            Throw ##class(%Exception.General).%New("Board ID not found for the given task")
-        }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If CheckPermission '= 1
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("task",userId, taskId)
+        If CheckPermission '= 1
+        {
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
         // Удаление задачи
         Set status = ##class(MyApp.DeleteFunctions).DeleteTask(taskId)
@@ -554,7 +465,6 @@ ClassMethod DeleteAccess(accessId As %Integer)
         {   
             Throw ##class(%Exception.General).%New("access not found")
         }
-   
         
         If access.GrantedBy '= userId 
         {
@@ -611,27 +521,6 @@ ClassMethod CreateNewBoard()
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-    /*
-    Set respons=..IsAuth()
-    If respons '= 0
-    {
-        Set data=%request.Content
-        Set boardId = ##class(MyApp.CreateFunctions).CreateBord(respons,data.title,data.description)
-        If boardId '= 0 
-        {
-            Set data = {"boardId":(boardId) }
-            Return ..SendSuccessResponse(data)
-        }
-        Else
-        {   
-            Return ..SendErrorResponse("Failed to create board")    
-        }
-    }
-    Else
-    {
-        Return ..SendErrorResponse("Invalid token")
-    }
-    */
 }
 
 ClassMethod CreateNewCard(boardId As %Integer)
@@ -652,17 +541,12 @@ ClassMethod CreateNewCard(boardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2)
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, boardId)
+        If (CheckPermission '= 1) && (CheckPermission '= 2)
+        {
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
+        
         // Удаление задачи
         Set cardId = ##class(MyApp.CreateFunctions).CreateCard(userId,boardId, data.title,data.description)
         If cardId'= 0 
@@ -684,27 +568,6 @@ ClassMethod CreateNewCard(boardId As %Integer)
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-    /*
-    Set respons=..IsAuth()
-    If respons '= 0
-    {
-        Set data=%request.Content        
-        Set cardId = ##class(MyApp.CreateFunctions).CreateCard(respons,data.boardId, data.title,data.description)
-        If cardId'= 0 
-        {
-            Set data = {"cardId":(cardId) }
-            Return ..SendSuccessResponse(data)
-        }
-        Else
-        {   
-            Return ..SendErrorResponse("Failed to create card")    
-        }
-    }
-    Else
-    {
-        Return ..SendErrorResponse("Invalid token")
-    }
-    */
 }
 
 ClassMethod CreateNewChecklist(cardId As %Integer)
@@ -725,20 +588,10 @@ ClassMethod CreateNewChecklist(cardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Card not found")
         }
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByCard(cardId)
-        If boardId = "" {
-            Throw ##class(%Exception.General).%New("Board ID not found for the given card")
-        }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2)
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("card",userId, cardId)
+        If (CheckPermission '= 1) && (CheckPermission '= 2)
+        {
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
         Set checklistId = ##class(MyApp.CreateFunctions).CreateChecklist(cardId ,data.title ,data.description)
         If checklistId '= 0
@@ -769,41 +622,6 @@ ClassMethod CreateNewChecklist(cardId As %Integer)
         // Логирование ошибки и возврат ответа
         Return ..SendErrorResponse(ex.DisplayString())
     }
-    /*
-    Set userId=..IsAuth()
-    If userId '= 0
-    {
-        Set data=%request.Content
-        Set checklistId = ##class(MyApp.CreateFunctions).CreateChecklist(data.cardId ,data.title ,data.description)
-        If checklistId '= 0
-        {
-            If $ISOBJECT(data.tasks) 
-            {
-                Set taskList = ##class(%Library.DynamicArray).%New()
-                Set count = data.tasks.%Size() 
-                For i=0:1:count-1 
-                {
-                    Set task = data.tasks.%Get(i)
-                    Set taskId =##class(MyApp.CreateFunctions).CreateTask(checklistId,task)
-                    If taskId '=0
-                    {
-                        Do taskList.%Push(taskId)
-                    }
-                }
-            }
-            Set data = {"cahecklistId":(checklistId), "tasks":(taskList) }
-            Return ..SendSuccessResponse(data)
-        }
-        Else
-        {
-            Return ..SendErrorResponse("Failed to create Checklist") 
-        }
-    }
-    Else
-    {
-         Return ..SendErrorResponse("Invalid token")
-    }
-    */
 }
 
 ClassMethod CreateNewTask(checklistId As %Integer)
@@ -824,21 +642,12 @@ ClassMethod CreateNewTask(checklistId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByList(checklistId)
-        If boardId = "" {
-            Throw ##class(%Exception.General).%New("Board ID not found for the given list")
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("list",userId, checklistId)
+        If (CheckPermission '= 1) && (CheckPermission '= 2)
+        {
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If (CheckPermission '= 1) && (CheckPermission '= 2)
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
-        }
+        
         If $ISOBJECT(data.tasks) 
         {       
             Set taskList = ##class(%Library.DynamicArray).%New()
@@ -909,24 +718,6 @@ ClassMethod UpdateUser()
                // Write "User updated successfully!"
             }
         } 
-       
-       /* Set data=%request.Content
-        if (data.oldPassword '= "") && (data.newPassword '="")
-        {
-            Set checkPass=##class(MyApp.Users).CheckPass(userId,data.oldPassword)
-            if checkPass =0
-            {
-                Throw ##class(%Exception.General).%New("Wrong password")
-            }
-            Set password=data.newPassword
-        }
-        Set status=##class(MyApp.UpdateFunctions).UpdateUserData(userId,data.email,data.userName,data.firstName,data.lastName,password)
-        If status = $$$OK
-        {
-            Return ..SendSuccessResponse("")
-        }
-
-        */
         Else
         {
             Throw ##class(%Exception.General).%New(status)
@@ -954,16 +745,11 @@ ClassMethod UpdateBoard(boardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
-        {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, boardId)
             If CheckPermission '= 1
             {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }
-        }
         Set status=##class(MyApp.UpdateFunctions).UpdateBoard(boardId,data.title,data.description)
         If status = $$$OK
         {
@@ -999,18 +785,12 @@ ClassMethod UpdateCard(cardId As %Integer)
         If boardId = "" {
             Throw ##class(%Exception.General).%New("Board ID not found for the given list")
         }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
-        {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("card",userId, cardId)
             If CheckPermission '= 1
             {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }
-        }
+        
         Set status=##class(MyApp.UpdateFunctions).UpdateCard(cardId,data.title,data.description)
         If status = $$$OK
         {
@@ -1045,22 +825,12 @@ ClassMethod UpdateChecklist(checklistId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
-        Set boardId = ##class(MyApp.AccessControl).GetBoardIdByList(checklistId)
-        If boardId = "" {
-            Throw ##class(%Exception.General).%New("Board ID not found for the given list")
-        }
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
-        {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("list",userId, checklistId)
             If CheckPermission '= 1
             {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }
-        }
+        
         Set status=##class(MyApp.UpdateFunctions).UpdateList(checklistId,data.title,data.description)
         If status = $$$OK
         {
@@ -1116,7 +886,7 @@ ClassMethod UpdateTasks()
     // Проверка прав владельца
     Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
     If isOwner '= 1 {
-        Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
+        Set CheckPermission = ##class(MyApp.AccessControl).CheckUserBoardPermissions(userId, boardId)
         If CheckPermission '= 1 {
             Throw ##class(%Exception.General).%New("User does not have permission")
         }
@@ -1167,24 +937,17 @@ ClassMethod UpdateSharedBoard(accessId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
-      
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, data.boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, data.boardId)
+        If CheckPermission '= 1
         {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, data.boardId)
-            // Проверка прав пользователя
-            If CheckPermission '= 1
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
+        
        // Обновление информации о пользователе
        Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
         If recipientId '=""
         { 
-            Set status = board.UpdateAccessData(recipientId,data.permission)
+            Set status = board.UpdateBoardAccessData(recipientId,data.permission)
             
             If $$$ISERR(status) 
             {
@@ -1228,22 +991,20 @@ ClassMethod ShareBoard(boardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
-        
-        // Проверка прав владельца
-        Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        // Если не владелец, проверяем другие права доступа
-        If isOwner '= 1 
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, boardId)
+        If CheckPermission '= 1
         {
-            Set CheckPermission = ##class(MyApp.AccessControl).CheckUserPermissions(userId, boardId)
-            // Проверка прав пользователя
-            If CheckPermission '= 1
-            {
-                Throw ##class(%Exception.General).%New("User does not have permission")
-            }
+            Throw ##class(%Exception.General).%New("User does not have permission")
         }
+        
         Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
         If recipientId '=""
         { 
+            Set isAdmin = ##class(MyApp.AccessControl).isUserHavePermission("board",recipientId, boardId)
+            if isAdmin =1
+            {
+                Throw ##class(%Exception.General).%New("User already have admin permission")
+            }
             if ..isBoardShared(recipientId,boardId) = 1
             {
                 Throw ##class(%Exception.General).%New("You have already shared the board with "_data.email)

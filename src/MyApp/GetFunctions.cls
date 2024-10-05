@@ -144,7 +144,7 @@ ClassMethod GetAllowedBoard(userId As %Integer)
 
 ClassMethod GetSharedList(userId As %Integer)
 {
-     Set resultSet = ##class(%SQL.Statement).%ExecDirect(,"SELECT ba.ID, ba.BoardId, b.Title, u.Email, p.Name FROM MyApp.BoardAccess ba JOIN MyApp.Boards b ON ba.BoardId = b.ID JOIN MyApp.Users u ON ba.UserId = u.ID JOIN MyApp.Permissions p ON ba.PermissionId = p.ID WHERE ba.GrantedBy = ?", userId)
+        Set resultSet = ##class(%SQL.Statement).%ExecDirect(,"SELECT ba.ID, ba.BoardId, b.Title, u.Email, p.Name,  ba.GrantedAt FROM MyApp.BoardAccess ba JOIN MyApp.Boards b ON ba.BoardId = b.ID JOIN MyApp.Users u ON ba.UserId = u.ID JOIN MyApp.Permissions p ON ba.PermissionId = p.ID WHERE ba.GrantedBy = ?", userId)
         Set sharedInfo = ##class(%Library.DynamicArray).%New()
         While resultSet.%Next() 
         {
@@ -153,7 +153,21 @@ ClassMethod GetSharedList(userId As %Integer)
             Do info.%Set("boardId", resultSet.BoardId)
             Do info.%Set("title", resultSet.Title)
             Do info.%Set("email", resultSet.Email)
-            
+            Do info.%Set("role", "Owner")
+            Do info.%Set("grantedAt", resultSet.GrantedAt)
+            Do info.%Set("permission", resultSet.Name)
+            Do sharedInfo.%Push(info)
+        }
+        Set resultSet = ##class(%SQL.Statement).%ExecDirect(,"SELECT ba.ID, ba.BoardId, b.Title, u.Email, p.Name, ba.GrantedAt FROM MyApp.BoardAccess ba JOIN MyApp.Boards b ON ba.BoardId = b.ID JOIN MyApp.Users u ON ba.UserId = u.ID JOIN MyApp.Permissions p ON ba.PermissionId = p.ID WHERE ba.UserId = ? AND permissionId =?", userId, "1")
+        While resultSet.%Next() 
+        {
+            Set info = ##class(%Library.DynamicObject).%New()
+            Do info.%Set("accessId", resultSet.ID)
+            Do info.%Set("boardId", resultSet.BoardId)
+            Do info.%Set("title", resultSet.Title)
+            Do info.%Set("email", resultSet.Email)
+            Do info.%Set("role", "Admin")
+            Do info.%Set("grantedAt", resultSet.GrantedAt)
             Do info.%Set("permission", resultSet.Name)
             Do sharedInfo.%Push(info)
         }

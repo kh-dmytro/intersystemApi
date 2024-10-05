@@ -1,7 +1,7 @@
-Class MyApp.BoardAccess Extends %Persistent
+Class MyApp.CardAccess Extends %Persistent
 {
 
-Property BoardId As %Integer [ Required ];
+Property CardId As %Integer [ Required ];
 
 Property UserId As %Integer [ Required ];
 
@@ -20,7 +20,7 @@ Method %OnNew() As %Status
     Quit $$$OK
 }
 
-Method UpdateBoardAccessData(userId As %Integer, permissionId As %Integer) As %Status
+Method UpdateCardAccessData(userId As %Integer, permissionId As %Integer) As %Status
 {
          // Обновляем значения свойств
         Set ..UserId = userId
@@ -31,12 +31,12 @@ Method UpdateBoardAccessData(userId As %Integer, permissionId As %Integer) As %S
 
 Storage Default
 {
-<Data name="BoardAccessDefaultData">
+<Data name="CardAccessDefaultData">
 <Value name="1">
 <Value>%%CLASSNAME</Value>
 </Value>
 <Value name="2">
-<Value>BoardId</Value>
+<Value>CardId</Value>
 </Value>
 <Value name="3">
 <Value>UserId</Value>
@@ -51,11 +51,11 @@ Storage Default
 <Value>GrantedAt</Value>
 </Value>
 </Data>
-<DataLocation>^MyApp.BoardAccessD</DataLocation>
-<DefaultData>BoardAccessDefaultData</DefaultData>
-<IdLocation>^MyApp.BoardAccessD</IdLocation>
-<IndexLocation>^MyApp.BoardAccessI</IndexLocation>
-<StreamLocation>^MyApp.BoardAccessS</StreamLocation>
+<DataLocation>^MyApp.CardAccessD</DataLocation>
+<DefaultData>CardAccessDefaultData</DefaultData>
+<IdLocation>^MyApp.CardAccessD</IdLocation>
+<IndexLocation>^MyApp.CardAccessI</IndexLocation>
+<StreamLocation>^MyApp.CardAccessS</StreamLocation>
 <Type>%Storage.Persistent</Type>
 }
 
