@@ -60,9 +60,13 @@ ClassMethod GetBoardIdByTask(taskId As %Integer) As %Integer
 {
         // Запрос для получения BoardId
         Set boardId = ##class(%SQL.Statement).%ExecDirect(,"SELECT b.Id FROM MyApp.Tasks t JOIN MyApp.Lists l ON t.ListId = l.Id JOIN MyApp.Cards c ON l.CardId = c.Id JOIN MyApp.Boards b ON c.BoardId = b.Id WHERE t.Id = ?", taskId)
-        if boardId.%Next() 
+        If boardId.%Next() 
         {
             Return boardId.ID
+        }
+         Else
+        {
+            Return 0
         }
 }
 
@@ -70,9 +74,13 @@ ClassMethod GetBoardIdByList(listId As %Integer) As %Integer
 {
         // Запрос для получения BoardId
         Set boardId = ##class(%SQL.Statement).%ExecDirect(,"SELECT b.Id FROM MyApp.Lists l JOIN MyApp.Cards c ON l.CardId = c.Id JOIN MyApp.Boards b ON c.BoardId = b.Id WHERE l.Id = ?", listId)
-        if boardId.%Next() 
+        If boardId.%Next() 
         {
             Return boardId.ID
+        }
+         Else
+        {
+            Return 0
         }
 }
 
@@ -80,9 +88,13 @@ ClassMethod GetBoardIdByCard(cardId As %Integer) As %Integer
 {
         // Запрос для получения BoardId
         Set boardId = ##class(%SQL.Statement).%ExecDirect(,"SELECT BoardID FROM MyApp.Cards WHERE ID = ?", cardId)
-        if boardId.%Next() 
+        If boardId.%Next() 
         {
             Return boardId.BoardId
+        }
+        Else
+        {
+            Return 0
         }
 }
 
@@ -90,9 +102,13 @@ ClassMethod GetCardIdByTask(taskId As %Integer) As %Integer
 {
         // Запрос для получения BoardId
         Set cardId = ##class(%SQL.Statement).%ExecDirect(,"SELECT l.CardId FROM MyApp.Tasks t JOIN MyApp.Lists l ON t.ListId = l.Id WHERE t.Id = ?", taskId)
-        if cardId.%Next() 
+        If cardId.%Next() 
         {
             Return cardId.CardId
+        }
+         Else
+        {
+            Return 0
         }
 }
 
@@ -100,9 +116,13 @@ ClassMethod GetCardIdByList(listId As %Integer) As %Integer
 {
         // Запрос для получения BoardId
         Set cardId = ##class(%SQL.Statement).%ExecDirect(,"SELECT CardId FROM MyApp.Lists WHERE ID = ?", listId)
-        if cardId.%Next() 
+        If cardId.%Next() 
         {
             Return cardId.CardId
+        }
+         Else
+        {
+            Return 0
         }
 }
 
@@ -111,53 +131,126 @@ ClassMethod isUserHavePermission(type As %String, userId As %Integer, id As %Int
     Set boardId=0
     Set cardId=0
     Set permission=0
-    if type = "task"
-    {
+
+    // Определение boardId и cardId в зависимости от типа
+    If type = "task" {
         Set boardId=..GetBoardIdByTask(id)
         Set cardId= ..GetCardIdByTask(id)
     }
-    if type = "list"
-    {
+    ElseIf type = "list" {
         Set boardId=..GetBoardIdByList(id)
         Set cardId=..GetCardIdByList(id)
     }
-    if type ="card"
-    {
+    ElseIf type ="card" {
         Set boardId=..GetBoardIdByCard(id)
         Set cardId=id
     }
-    if type="board"
-    {
+    ElseIf type= "board" {
         Set boardId=id
     }
-    if (boardId '=0) || (cardId '=0)
+    Else
     {
+        //Write "no type",!
+    }
+
+    If boardId '= 0 {
+        // Проверка прав владельца
         Set permission=..CheckUserOwner(userId, boardId)
-        if permission = 1
-        {
-            return permission
+        If permission = 1 {
+            //Write "User is owner =",permission,! 
+            Return permission
         }
-        else
-        {
-            Set permission=..CheckUserBoardPermissions(userId,boardId)
-            if permission '= 0
+        Else {
+            // Проверка прав на доску
+            Set boardPermission=..CheckUserBoardPermissions(userId, boardId)
+             //Write "board permission ",boardPermission,!
+            If boardPermission '= 0 
             {
-                return permission
+                Set permission = boardPermission
             }
-            else
+            If cardId '= 0 
             {
-                Set permission=..CheckUserCardPermissions(userId,cardId)
-                if permission '= 0
-                {
-                    return permission
+                
+                Set cardPermission=..CheckUserCardPermissions(userId, cardId)
+                //Write "card permission ",cardPermission,!
+                If cardPermission '= 0 
+                {       
+                    Set permission =cardPermission
                 }
             }
         }
     }
-    else
+    //Write "permission ",permission,!
+    Return permission
+}
+
+ClassMethod isBoardShared(userId As %Integer, boardId As %Integer) As %Boolean
+{
+    Set result = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.BoardAccess WHERE BoardId = ? AND UserId = ?", boardId, userId)
+    If result.%Next() 
     {
-        return permission
+        Return 1
     }
+    Else
+    {
+        Return 0
+    }
+}
+
+ClassMethod isCardShared(userId As %Integer, cardId As %Integer, permissionId As %Integer) As %Boolean
+{
+    Set resultCard = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.CardAccess WHERE CardId = ? AND UserId = ?", cardId, userId)
+    If resultCard.%Next() 
+    {
+        Return 1
+    }
+    Else
+    {
+        Set resultBoard = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.BoardAccess WHERE BoardId = ? AND UserId = ? AND PermissionId = ?", ..GetBoardIdByCard(cardId), userId, permissionId)
+        If resultBoard.%Next() 
+        {
+            Return 1
+        }
+        Else
+        {
+            Return 0
+        }    
+    }
+}
+
+ClassMethod CreateSharedCard(ownerId As %Integer, cardId As %Integer, userId As %String, permission As %Integer) As %Status
+{
+    Set newShare=##class(MyApp.CardAccess).%New()
+    Set newShare.CardId=cardId
+    Set newShare.UserId=userId
+    Set newShare.GrantedBy=ownerId
+    Set newShare.PermissionId=permission
+    Set status = newShare.%Save()
+    If status= $$$OK
+        {
+          Return newShare.%Id()
+        }
+        Else
+        {       
+            Return "Something went wrong"
+        }
+}
+ClassMethod UpdateSharedCard(ownerId As %Integer, cardId As %Integer, userId As %String, permission As %Integer) As %Status
+{
+    Set newShare=##class(MyApp.CardAccess).%New()
+    Set newShare.CardId=cardId
+    Set newShare.UserId=userId
+    Set newShare.GrantedBy=ownerId
+    Set newShare.PermissionId=permission
+    Set status = newShare.%Save()
+    If status= $$$OK
+        {
+          Return newShare.%Id()
+        }
+        Else
+        {       
+            Return "Something went wrong"
+        }
 }
 
 }

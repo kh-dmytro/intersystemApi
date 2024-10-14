@@ -39,9 +39,14 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Route Url="/users/update" Method="POST" Call="UpdateUser"/>  <!-- обновление пользователя -->
 <!-- Шаринг досок -->
 <Route Url="/boards/:boardId/share" Method="POST" Call="ShareBoard"/>  <!-- расшаривание доски для других пользователей -->
-<Route Url="/boards/:boardId/share" Method="PUT" Call="UpdateSharedBoard"/> 
-<Route Url="/boards/:boardId/share" Method="DELETE" Call="DeleteAccess"/> 
+<Route Url="/boards/:accessId/share" Method="PUT" Call="UpdateSharedBoard"/> 
+<Route Url="/boards/:accessId/share" Method="DELETE" Call="DeleteAccess"/> 
 <Route Url="/boards/shared-by-me" Method="GET" Call="GetBoardsSharedByMe"/>
+
+<Route Url="/cards/:cardId/share" Method="POST" Call="ShareCard"/>  <!-- расшаривание доски для других пользователей -->
+<Route Url="/cards/:accessId/share" Method="PUT" Call="UpdateSharedCard"/> 
+<Route Url="/cards/:accessId/share" Method="DELETE" Call="DeleteCardAccess"/> 
+<Route Url="/cards/allowed" Method="GET" Call="GetAllowedCards"/>  <!-- получение досок с доступом -->
 <Route Url="/auth" Method="POST" Call="Auth"/>
 <!-- Swagger specs -->
 <Route Url="/_spec" Method="GET" Call="SwaggerSpec" />  
@@ -72,7 +77,7 @@ ClassMethod TaskCompleted(taskId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong task ID")
         }
-        If '$Data(^MyApp.TasksD(taskId)) 
+        If '$DATA(^MyApp.TasksD(taskId)) 
         {
             Throw ##class(%Exception.General).%New("Task not found")
         }
@@ -112,7 +117,7 @@ ClassMethod GetUserBoards()
         Set data=%request.Content
         Set boardList = ##class(MyApp.GetFunctions).GetBoards(userId)
        // If boardList '=0
-        If ($IsObject(boardList)) && (boardList.%Size() > 0)
+        If ($ISOBJECT(boardList)) && (boardList.%Size() > 0)
         {
             Set data = {"boards":(boardList) }
             Return ..SendSuccessResponse(data)
@@ -139,7 +144,7 @@ ClassMethod GetBoardCards(boardId As %Integer) As %DynamicArray
             Throw ##class(%Exception.General).%New("Invalid token")
         }
        
-        If '$Data(^MyApp.BoardsD(boardId)) 
+        If '$DATA(^MyApp.BoardsD(boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
@@ -150,7 +155,7 @@ ClassMethod GetBoardCards(boardId As %Integer) As %DynamicArray
         }
         // Получение списка задач
         Set cardList = ##class(MyApp.GetFunctions).GetCards(boardId)
-        If ($IsObject(cardList)) && (cardList.%Size() > 0)
+        If ($ISOBJECT(cardList)) && (cardList.%Size() > 0)
         {
             Set data = {"cards":(cardList) }
             Return ..SendSuccessResponse(data)
@@ -179,7 +184,7 @@ ClassMethod GetCardLists(cardId As %Integer) As %DynamicArray
             Throw ##class(%Exception.General).%New("Invalid token")
         }
        
-        If '$Data(^MyApp.CardsD(cardId)) 
+        If '$DATA(^MyApp.CardsD(cardId)) 
         {
             Throw ##class(%Exception.General).%New("Card not found")
         }
@@ -191,7 +196,7 @@ ClassMethod GetCardLists(cardId As %Integer) As %DynamicArray
 
         // Получение списка задач
         Set checkList = ##class(MyApp.GetFunctions).GetLists(cardId)
-        If ($IsObject(checkList)) && (checkList.%Size() > 0)
+        If ($ISOBJECT(checkList)) && (checkList.%Size() > 0)
         {
             Set data = {"checklists":(checkList) }
             Return ..SendSuccessResponse(data)
@@ -223,7 +228,7 @@ ClassMethod GetListTasks(checklistId As %Integer) As %DynamicArray
         {
             Throw ##class(%Exception.General).%New("Wrong checklist ID")
         }
-        If '$Data(^MyApp.ListsD(checklistId)) 
+        If '$DATA(^MyApp.ListsD(checklistId)) 
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
@@ -234,7 +239,7 @@ ClassMethod GetListTasks(checklistId As %Integer) As %DynamicArray
         }
         // Получение списка задач
         Set taskList = ##class(MyApp.GetFunctions).GetTasks(checklistId)
-        If ($IsObject(taskList)) && (taskList.%Size() > 0)
+        If ($ISOBJECT(taskList)) && (taskList.%Size() > 0)
         {
             Set data = {"tasks": (taskList)}
             Return ..SendSuccessResponse(data)
@@ -275,6 +280,28 @@ ClassMethod GetAllowedBoards()
     }
 }
 
+ClassMethod GetAllowedCards()
+{
+    Set userId=..IsAuth()
+    If userId '= 0 
+    {  
+        Set cardList = ##class(MyApp.GetFunctions).GetAllowedCards(userId)
+        If cardList '=0
+        {
+            Set data = {"cards":(cardList) }
+            Return ..SendSuccessResponse(data)
+        }
+        Else
+        {
+            Return ..SendErrorResponse("Cards not found")
+        }
+    }
+    Else 
+    {
+        Return ..SendErrorResponse("Invalid token")
+    }
+}
+
 ClassMethod GetBoardsSharedByMe()
 {
     Try {
@@ -286,7 +313,7 @@ ClassMethod GetBoardsSharedByMe()
         }
         // Получение списка 
         Set sharedInfo = ##class(MyApp.GetFunctions).GetSharedList(userId)
-        If ($IsObject(sharedInfo)) && (sharedInfo.%Size() > 0)
+        If ($ISOBJECT(sharedInfo)) && (sharedInfo.%Size() > 0)
         {
             Set data = {"sharedInfo":(sharedInfo) }
             Return ..SendSuccessResponse(data)
@@ -316,7 +343,7 @@ ClassMethod DeleteBoard(boardId As %Integer)
         }
         Set data = %request.Content
         // Проверка прав владельца
-        If '$Data(^MyApp.BoardsD(boardId)) 
+        If '$DATA(^MyApp.BoardsD(boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
@@ -354,7 +381,7 @@ ClassMethod DeleteCard(cardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong card Id")
         }
-        If '$Data(^MyApp.CardsD(cardId)) 
+        If '$DATA(^MyApp.CardsD(cardId)) 
         {
             Throw ##class(%Exception.General).%New("Card not found")
         }
@@ -391,7 +418,7 @@ ClassMethod DeleteChecklist(checklistId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong checklist Id")
         }
-        If '$Data(^MyApp.ListsD(checklistId)) 
+        If '$DATA(^MyApp.ListsD(checklistId)) 
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
@@ -425,7 +452,7 @@ ClassMethod DeleteTask(taskId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong task Id")
         }
-        If '$Data(^MyApp.TasksD(taskId)) 
+        If '$DATA(^MyApp.TasksD(taskId)) 
         {
             Throw ##class(%Exception.General).%New("Task not found")
         }
@@ -468,19 +495,60 @@ ClassMethod DeleteAccess(accessId As %Integer)
         
         If access.GrantedBy '= userId 
         {
-            if (access.UserId '= userId) && (access.PermissionId '= 1)
+            If (access.UserId '= userId) && (access.PermissionId '= 1)
             {
                 Throw ##class(%Exception.General).%New("User does not have permission")
             }
         }
         Kill ^MyApp.BoardAccessD(accessId)
-        If '$Data(^MyApp.BoardAccessD(accessId)) 
+        If '$DATA(^MyApp.BoardAccessD(accessId)) 
         {
             Return ..SendSuccessResponse("")
         } 
         Else 
         {
-          Throw ##class(%Exception.General).%New("Failed to delete task")
+          Throw ##class(%Exception.General).%New("Failed to delete access")
+        }
+    }
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+}
+
+ClassMethod DeleteCardAccess(accessId As %Integer)
+{
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        If 'accessId
+        {
+            Throw ##class(%Exception.General).%New("Wrong access Id")
+        }
+        Set access = ##class(MyApp.CardAccess).%OpenId(accessId)
+        If access = ""
+        {   
+            Throw ##class(%Exception.General).%New("access not found")
+        }
+        
+        If access.GrantedBy '= userId 
+        {
+            If (access.UserId '= userId) && (access.PermissionId '= 1)
+            {
+                Throw ##class(%Exception.General).%New("You does not have permission")
+            }
+        }
+        Kill ^MyApp.CardAccessD(accessId)
+        If '$DATA(^MyApp.CardAccessD(accessId)) 
+        {
+            Return ..SendSuccessResponse("")
+        } 
+        Else 
+        {
+          Throw ##class(%Exception.General).%New("Failed to delete access")
         }
     }
     Catch ex {
@@ -537,7 +605,7 @@ ClassMethod CreateNewCard(boardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong board Id")
         }
-        If '$Data(^MyApp.BoardsD(boardId)) 
+        If '$DATA(^MyApp.BoardsD(boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
@@ -584,7 +652,7 @@ ClassMethod CreateNewChecklist(cardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong card Id")
         }
-        If '$Data(^MyApp.CardsD(cardId)) 
+        If '$DATA(^MyApp.CardsD(cardId)) 
         {
             Throw ##class(%Exception.General).%New("Card not found")
         }
@@ -596,7 +664,7 @@ ClassMethod CreateNewChecklist(cardId As %Integer)
         Set checklistId = ##class(MyApp.CreateFunctions).CreateChecklist(cardId ,data.title ,data.description)
         If checklistId '= 0
         {
-            If $ISOBJECT(data.tasks) 
+            If ($ISOBJECT(data.tasks)) &&(data.tasks) 
             {
                 Set taskList = ##class(%Library.DynamicArray).%New()
                 Set count = data.tasks.%Size() 
@@ -638,7 +706,7 @@ ClassMethod CreateNewTask(checklistId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong checklist Id")
         }
-        If '$Data(^MyApp.ListsD(checklistId)) 
+        If '$DATA(^MyApp.ListsD(checklistId)) 
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
@@ -691,15 +759,15 @@ ClassMethod UpdateUser()
         If (user '= "") 
         {
             Set checkEmail=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
-            if checkEmail '=""
+            If checkEmail '=""
             {
                 Throw ##class(%Exception.General).%New("Email already exists")
                 
             }
-            if (data.oldPassword '= "") && (data.newPassword '="")
+            If (data.oldPassword '= "") && (data.newPassword '="")
             {
                 Set checkPass=##class(MyApp.Users).CheckPass(userId,data.oldPassword)
-                if checkPass =0
+                If checkPass =0
                 {
                     Throw ##class(%Exception.General).%New("Wrong password")
                 }
@@ -741,7 +809,7 @@ ClassMethod UpdateBoard(boardId As %Integer)
         Set data = %request.Content
         // Проверка прав владельца
         Set isOwner = ##class(MyApp.AccessControl).CheckUserOwner(userId, boardId)
-        If '$Data(^MyApp.BoardsD(boardId)) 
+        If '$DATA(^MyApp.BoardsD(boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
@@ -777,7 +845,7 @@ ClassMethod UpdateCard(cardId As %Integer)
         }
         // Получение данных из запроса
         Set data = %request.Content
-        If '$Data(^MyApp.CardsD(cardId)) 
+        If '$DATA(^MyApp.CardsD(cardId)) 
         {
             Throw ##class(%Exception.General).%New("Card not found")
         }
@@ -821,7 +889,7 @@ ClassMethod UpdateChecklist(checklistId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong checklist id parameter")
         }
-        If '$Data(^MyApp.ListsD(checklistId)) 
+        If '$DATA(^MyApp.ListsD(checklistId)) 
         {
             Throw ##class(%Exception.General).%New("Checklist not found")
         }
@@ -868,13 +936,13 @@ ClassMethod UpdateTasks()
 
     // Получение данных из запроса
     Set data = %request.Content
-    If 'data.tasks || '$IsObject(data.tasks) {
+    If 'data.tasks || '$ISOBJECT(data.tasks) {
         Throw ##class(%Exception.General).%New("Tasks parameter is missing or invalid")
     }
 
     // Проверка прав владельца для одной из задач, чтобы не делать это на каждую задачу
     Set firstTaskId = data.tasks.%Get(0).taskId
-    If '$Data(^MyApp.TasksD(firstTaskId)) {
+    If '$DATA(^MyApp.TasksD(firstTaskId)) {
         Throw ##class(%Exception.General).%New("Task not found")
     }
     
@@ -896,7 +964,7 @@ ClassMethod UpdateTasks()
     Set count = data.tasks.%Size()
     For i = 0:1:count-1 {
         Set task = data.tasks.%Get(i)
-        If '$Data(^MyApp.TasksD(task.taskId)) {
+        If '$DATA(^MyApp.TasksD(task.taskId)) {
             Throw ##class(%Exception.General).%New("Task with ID "_task.taskId_" not found")
         }
 
@@ -937,7 +1005,7 @@ ClassMethod UpdateSharedBoard(accessId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
-        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, data.boardId)
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("board",userId, board.BoardId)
         If CheckPermission '= 1
         {
             Throw ##class(%Exception.General).%New("User does not have permission")
@@ -958,7 +1026,60 @@ ClassMethod UpdateSharedBoard(accessId As %Integer)
                 Return ..SendSuccessResponse("")
             }
         }
-        else
+        Else
+        {
+            Throw ##class(%Exception.General).%New("Recipient not found")
+        }
+    }
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
+    }
+}
+
+ClassMethod UpdateSharedCard(accessId As %Integer)
+{
+     Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        // Получение данных из запроса
+        Set data = %request.Content
+
+        
+        If 'accessId
+        {
+            Throw ##class(%Exception.General).%New("Wrong board id parameter")
+        }
+        Set card = ##class(MyApp.CardAccess).%OpenId(accessId)
+        If card = ""
+        {
+            Throw ##class(%Exception.General).%New("card not found")
+        }
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("card",userId, card.CardId)
+        If CheckPermission '= 1
+        {
+            Throw ##class(%Exception.General).%New("You does not have permission")
+        }
+        
+       // Обновление информации о пользователе
+       Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
+        If recipientId '=""
+        { 
+            Set status = card.UpdateCardAccessData(recipientId,data.permission)
+            
+            If $$$ISERR(status) 
+            {
+                Throw ##class(%Exception.General).%New("Error updating user: "_ status)
+            } 
+            Else 
+            {
+                Return ..SendSuccessResponse("")
+            }
+        }
+        Else
         {
             Throw ##class(%Exception.General).%New("Recipient not found")
         }
@@ -987,7 +1108,7 @@ ClassMethod ShareBoard(boardId As %Integer)
         {
             Throw ##class(%Exception.General).%New("Wrong  Permission")
         }
-        If '$Data(^MyApp.BoardsD(boardId)) 
+        If '$DATA(^MyApp.BoardsD(boardId)) 
         {
             Throw ##class(%Exception.General).%New("Board not found")
         }
@@ -1001,11 +1122,11 @@ ClassMethod ShareBoard(boardId As %Integer)
         If recipientId '=""
         { 
             Set isAdmin = ##class(MyApp.AccessControl).isUserHavePermission("board",recipientId, boardId)
-            if isAdmin =1
+            If isAdmin =1
             {
                 Throw ##class(%Exception.General).%New("User already have admin permission")
             }
-            if ..isBoardShared(recipientId,boardId) = 1
+            If ##class(MyApp.AccessControl).isBoardShared(recipientId,boardId) = 1
             {
                 Throw ##class(%Exception.General).%New("You have already shared the board with "_data.email)
             }
@@ -1030,16 +1151,64 @@ ClassMethod ShareBoard(boardId As %Integer)
     }
 }
 
-ClassMethod isBoardShared(userId As %Integer, boardId As %Integer) As %Boolean
+ClassMethod ShareCard(cardId As %Integer)
 {
-    Set result = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.BoardAccess WHERE BoardId = ? AND UserId = ?", boardId, userId)
-    If result.%Next() 
-    {
-        Return 1
+    Try {
+        // Проверка аутентификации
+        Set userId = ..IsAuth()
+        If userId = 0 {
+            Throw ##class(%Exception.General).%New("Invalid token")
+        }
+        // Получение данных из запроса
+        Set data = %request.Content
+        If 'cardId
+        {
+            Throw ##class(%Exception.General).%New("Wrong  Card ID")
+        }
+        If 'data.permission
+        {
+            Throw ##class(%Exception.General).%New("Wrong  Permission")
+        }
+        If '$DATA(^MyApp.CardsD(cardId)) 
+        {
+            Throw ##class(%Exception.General).%New("Card not found")
+        }
+        Set CheckPermission = ##class(MyApp.AccessControl).isUserHavePermission("card",userId, cardId)
+        If CheckPermission '= 1
+        {
+            Throw ##class(%Exception.General).%New("You does not have permission")
+        }
+        
+        Set recipientId=$ORDER(^MyApp.UsersI("EmailIdx", $ZCONVERT(" "_data.email, "U"), ""))
+        If recipientId '=""
+        { 
+            Set isAdmin = ##class(MyApp.AccessControl).isUserHavePermission("card",recipientId, cardId)
+            If isAdmin =1
+            {
+                Throw ##class(%Exception.General).%New("User already have admin permission")
+            }
+            If ##class(MyApp.AccessControl).isCardShared(recipientId,cardId, data.permission) = 1
+            {
+                Throw ##class(%Exception.General).%New("You have already shared the board with "_data.email)
+            }
+            Set status=##class(MyApp.AccessControl).CreateSharedCard(userId,cardId,recipientId,data.permission)
+            If status '=0
+            {
+                Return ..SendSuccessResponse("")
+            }
+            Else
+            {
+                Return ..SendErrorResponse(status)
+            }
+        }
+        Else
+        {
+           Return ..SendErrorResponse("Recipient not found")
+        }
     }
-    else
-    {
-        Return 0
+    Catch ex {
+        // Логирование ошибки и возврат ответа
+        Return ..SendErrorResponse(ex.DisplayString())
     }
 }
 

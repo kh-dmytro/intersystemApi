@@ -3,7 +3,7 @@ Class MyApp.Lists Extends %Persistent
 
 Property Title As %String [ Required ];
 
-Property Description As %String;
+Property Description As %String(MAXLEN = 256);
 
 Property CardId As %Integer [ Required ];
 

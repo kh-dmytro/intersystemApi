@@ -6,7 +6,7 @@ ClassMethod GetUserData(userId As %Integer) As %DynamicObject
         If $DATA(^MyApp.UsersD(userId))
         { 
             Set userdata= ^MyApp.UsersD(userId) 
-            SET data = 
+            Set data = 
             {
                 "Success": "true",
                 "username": ($LIST(userdata, 2)),
@@ -15,11 +15,11 @@ ClassMethod GetUserData(userId As %Integer) As %DynamicObject
                 "lastName": ($LIST(userdata, 6)), 
                 "userId":(userId)
             }
-            return data
+            Return data
         }
-        else
+        Else
         {
-            return 0
+            Return 0
         }
 }
 
@@ -40,9 +40,9 @@ ClassMethod GetBoards(userId As %Integer) As %DynamicObject
         {
             Return 0
         }
-        else
+        Else
         {  
-            RETURN boardList
+            Return boardList
         }
 }
 
@@ -63,9 +63,30 @@ ClassMethod GetCards(boardId As %Integer) As %DynamicObject
         {
             Return 0
         }
-        else
+        Else
         {  
-            RETURN cardList
+            Return cardList
+        }
+}
+
+ClassMethod GetCard(cardId As %Integer) As %DynamicObject
+{
+        Set card = ##class(MyApp.Cards).%OpenId(cardId)
+        Set cardList = ##class(%Library.DynamicArray).%New()
+        
+            Set card = ##class(%Library.DynamicObject).%New()
+            Do card.%Set("cardId", card.ID)
+            Do card.%Set("title", card.Title)
+            Do card.%Set("description", card.Description)
+            Do card.%Set("checklists",..GetLists(card.ID))
+            Do cardList.%Push(card)
+       If cardList.%Size() = 0 
+        {
+            Return 0
+        }
+        Else
+        {  
+            Return cardList
         }
 }
 
@@ -86,9 +107,9 @@ ClassMethod GetLists(cardId As %Integer) As %DynamicObject
         {
             Return 0
         }
-        else
+        Else
         {  
-            RETURN checklists
+            Return checklists
         }
 }
 
@@ -108,9 +129,9 @@ ClassMethod GetTasks(listId As %Integer) As %DynamicObject
         {
             Return 0
         }
-        else
+        Else
         {  
-            RETURN taskList
+            Return taskList
         }
 }
 
@@ -129,16 +150,77 @@ ClassMethod GetAllowedBoard(userId As %Integer)
             Do board.%Set("permission", allowedBoard.PermissionId)
             Do board.%Set("title", $LIST(boardData, 2))
             Do board.%Set("description", $LIST(boardData, 3))
-            Do board.%Set("cards",..GetCards(allowedBoard.BoardId))
+            Do board.%Set("cards",..GetAllowedCard(allowedBoard.BoardId,userId,allowedBoard.PermissionId))
             Do boardList.%Push(board)
         }
         If boardList.%Size() = 0 
         {
             Return 0
         }
-        else
+        Else
         {  
-            RETURN boardList
+            Return boardList
+        }
+}
+
+ClassMethod GetAllowedCards(userId As %Integer)
+{
+    Set allowedCards = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID, CardId, PermissionId, GrantedBy	 FROM MyApp.CardAccess WHERE UserId = ?", userId)
+    Set CardList = ##class(%Library.DynamicArray).%New()
+    While allowedCards.%Next() 
+        {
+            Set cardData = ##class(MyApp.Cards).%OpenId(allowedCards.CardId)
+            Set card = ##class(%Library.DynamicObject).%New()
+            Do card.%Set("cardId", allowedCards.CardId)
+            Do card.%Set("owner", $LIST(^MyApp.UsersD(allowedCards.GrantedBy), 3))
+            Do card.%Set("permission", allowedCards.PermissionId)
+            Do card.%Set("title", cardData.Title)
+            Do card.%Set("description", cardData.Description)
+            Do card.%Set("checklists",..GetLists(allowedCards.CardId))
+            Do CardList.%Push(card)
+        }
+        If CardList.%Size() = 0 
+        {
+            Return 0
+        }
+        Else
+        {  
+            Return CardList
+        }
+}
+
+ClassMethod GetAllowedCard(boardId As %Integer, userId As %Integer, permission As %Integer) As %DynamicObject
+{
+        Set resultSet = ##class(%SQL.Statement).%ExecDirect(,"SELECT c.ID, c.Title, c.Description, ca.PermissionId FROM MyApp.Cards c LEFT JOIN MyApp.CardAccess ca ON c.ID = ca.CardId AND ca.UserId = ?  WHERE c.BoardId = ? ",userId, boardId)
+        Set cardList = ##class(%Library.DynamicArray).%New()
+       // Write "beginn ",resultSet,!
+        While resultSet.%Next() 
+        {
+          // Write "in while",!
+            Set card = ##class(%Library.DynamicObject).%New()
+            Do card.%Set("cardId", resultSet.ID)
+            If resultSet.PermissionId '=""
+            {
+                Do card.%Set("permission", resultSet.PermissionId) 
+            }
+            Else
+            {
+                 Do card.%Set("permission", permission)
+            }
+            Do card.%Set("title", resultSet.Title)
+            Do card.%Set("description", resultSet.Description)
+            Do card.%Set("checklists",..GetLists(resultSet.ID))
+            //Write "card id", resultSet.ID,!
+    //Write "permission ",card.permission,!
+            Do cardList.%Push(card)
+        }
+        If cardList.%Size() = 0 
+        {
+            Return 0
+        }
+        Else
+        {  
+            Return cardList
         }
 }
 
@@ -154,6 +236,7 @@ ClassMethod GetSharedList(userId As %Integer)
             Do info.%Set("title", resultSet.Title)
             Do info.%Set("email", resultSet.Email)
             Do info.%Set("role", "Owner")
+            Do info.%Set("type", "Board")
             Do info.%Set("grantedAt", resultSet.GrantedAt)
             Do info.%Set("permission", resultSet.Name)
             Do sharedInfo.%Push(info)
@@ -167,6 +250,35 @@ ClassMethod GetSharedList(userId As %Integer)
             Do info.%Set("title", resultSet.Title)
             Do info.%Set("email", resultSet.Email)
             Do info.%Set("role", "Admin")
+              Do info.%Set("type", "Board")
+            Do info.%Set("grantedAt", resultSet.GrantedAt)
+            Do info.%Set("permission", resultSet.Name)
+            Do sharedInfo.%Push(info)
+        }
+        Set resultSet = ##class(%SQL.Statement).%ExecDirect(,"SELECT ca.ID, ca.CardId, c.Title, u.Email, p.Name,  ca.GrantedAt FROM MyApp.CardAccess ca JOIN MyApp.Cards c ON ca.CardId = c.ID JOIN MyApp.Users u ON ca.UserId = u.ID JOIN MyApp.Permissions p ON ca.PermissionId = p.ID WHERE ca.GrantedBy = ?", userId)
+        While resultSet.%Next() 
+        {
+            Set info = ##class(%Library.DynamicObject).%New()
+            Do info.%Set("accessId", resultSet.ID)
+            Do info.%Set("boardId", resultSet.CardId)
+            Do info.%Set("title", resultSet.Title)
+            Do info.%Set("email", resultSet.Email)
+            Do info.%Set("role", "Owner")
+            Do info.%Set("type", "Card")
+            Do info.%Set("grantedAt", resultSet.GrantedAt)
+            Do info.%Set("permission", resultSet.Name)
+            Do sharedInfo.%Push(info)
+        }
+        Set resultSet = ##class(%SQL.Statement).%ExecDirect(,"SELECT ca.ID, ca.CardId, c.Title, u.Email, p.Name, ca.GrantedAt FROM MyApp.CardAccess ca JOIN MyApp.Cards c ON ca.CardId = c.ID JOIN MyApp.Users u ON ca.UserId = u.ID JOIN MyApp.Permissions p ON ca.PermissionId = p.ID WHERE ca.UserId = ? AND permissionId =?", userId, "1")
+        While resultSet.%Next() 
+        {
+            Set info = ##class(%Library.DynamicObject).%New()
+            Do info.%Set("accessId", resultSet.ID)
+            Do info.%Set("boardId", resultSet.CardId)
+            Do info.%Set("title", resultSet.Title)
+            Do info.%Set("email", resultSet.Email)
+            Do info.%Set("role", "Admin")
+            Do info.%Set("type", "Card")
             Do info.%Set("grantedAt", resultSet.GrantedAt)
             Do info.%Set("permission", resultSet.Name)
             Do sharedInfo.%Push(info)
@@ -175,9 +287,9 @@ ClassMethod GetSharedList(userId As %Integer)
         {
             Return 0
         }
-        else
+        Else
         {  
-            RETURN sharedInfo
+            Return sharedInfo
         }
 }
 

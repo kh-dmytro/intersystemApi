@@ -9,9 +9,9 @@ ClassMethod DeleteBoard(boardId As %Integer)
         {
             Set status= ..DeleteCard(resultSet.ID)
              
-            if status =0
+            If status =0
             {
-                return 0
+                Return 0
             }
         }
         Set result = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.BoardAccess WHERE BoardId = ? ", boardId)
@@ -20,12 +20,12 @@ ClassMethod DeleteBoard(boardId As %Integer)
             Kill ^MyApp.BoardAccessD(result.ID)
         }
         Kill ^MyApp.BoardsD(boardId)
-        If '$Data(^MyApp.BoardsD(boardId)) {
+        If '$DATA(^MyApp.BoardsD(boardId)) {
             Return 1
         } 
         Else 
         {
-            return 0
+            Return 0
         }
 }
 
@@ -37,18 +37,23 @@ ClassMethod DeleteCard(cardId)
         {
             Set status= ..DeleteList(resultSet.ID)
              
-            if status =0
+            If status =0
             {
-                return 0
+                Return 0
             }
         }
+        Set result = ##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM MyApp.CardAccess WHERE CardId = ? ", cardId)
+        If result.%Next() 
+        {
+            Kill ^MyApp.CardAccessD(result.ID)
+        }
         Kill ^MyApp.CardsD(cardId)
-        If '$Data(^MyApp.CardsD(cardId)) {
+        If '$DATA(^MyApp.CardsD(cardId)) {
             Return 1
         } 
         Else 
         {
-            return 0
+            Return 0
         }
 }
 
@@ -60,18 +65,18 @@ ClassMethod DeleteList(listId)
         {   
             Set status= ..DeleteTask(resultSet.ID)
              
-            if status =0
+            If status =0
             {
-                return 0
+                Return 0
             }
         }
         Kill ^MyApp.ListsD(listId)
-        If '$Data(^MyApp.ListsD(listId)) {
+        If '$DATA(^MyApp.ListsD(listId)) {
             Return 1
         } 
         Else 
         {
-            return 0
+            Return 0
         }
 }
 
@@ -80,12 +85,12 @@ ClassMethod DeleteTask(taskId) As %Boolean
     //write "id;" ,taskId,!
     //return 1
     Kill ^MyApp.TasksD(taskId)
-    If '$Data(^MyApp.TasksD(taskId)) {
+    If '$DATA(^MyApp.TasksD(taskId)) {
     Return 1
     } 
     Else 
     {
-    return 0
+    Return 0
     }
 }
 
