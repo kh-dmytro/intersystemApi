@@ -8,45 +8,77 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
 
 <Route Url="/" Method="GET" Call="GetInfo" Cors="true"/>
+<!--Login (email, password)    -->
 <Route Url="/login" Method="POST" Call="Login"/>
+<!--Logout (invalidate token)    -->
 <Route Url="/logout" Method="POST" Call="Logout"/>  
-<Route Url="/register" Method="POST" Call="Registration"/>  <!-- изменение на более распространённый "register" -->
-<Route Url="/userdata" Method="GET" Call="GetUserData"/>  <!-- изменение на REST стиль -->
+<!--Login (email,user name, first name, last name, password)    -->
+<Route Url="/register" Method="POST" Call="Registration"/>  
+<!-- Get user data (id, email,user name, first name, last name,) -->
+<Route Url="/userdata" Method="GET" Call="GetUserData"/>  
 
 <!-- Работа с досками -->
-<Route Url="/boards" Method="GET" Call="GetUserBoards"/>  <!-- получение всех досок пользователя -->
-<Route Url="/boards" Method="POST" Call="CreateNewBoard"/>  <!-- создание новой доски -->
-<Route Url="/boards/allowed" Method="GET" Call="GetAllowedBoards"/>  <!-- получение досок с доступом -->
-<Route Url="/boards/:boardId" Method="PUT" Call="UpdateBoard"/>  <!-- обновление доски -->
-<Route Url="/boards/:boardId" Method="DELETE" Call="DeleteBoard"/>  <!-- удаление доски -->
-<!-- Работа с карточками -->
-<Route Url="/boards/:boardId/cards" Method="GET" Call="GetBoardCards"/>  <!-- получение карточек для доски -->
- <Route Url="/boards/:boardId/cards" Method="POST" Call="CreateNewCard"/>  <!-- создание новой карточки -->
-<Route Url="/cards/:cardId" Method="PUT" Call="UpdateCard"/>  <!-- обновление карточки -->
-<Route Url="/cards/:cardId" Method="DELETE" Call="DeleteCard"/>  <!-- удаление карточки -->
-<!-- Работа с чеклистами -->
-<Route Url="/cards/:cardId/checklists" Method="GET" Call="GetCardLists"/>  <!-- получение чеклистов для карточки -->
-<Route Url="/cards/:cardId/checklists" Method="POST" Call="CreateNewChecklist"/>   <!-- создание нового чеклиста -->
-<Route Url="/checklists/:checklistId" Method="PUT" Call="UpdateChecklist"/>  <!-- обновление чеклиста -->
-<Route Url="/checklists/:checklistId" Method="DELETE" Call="DeleteChecklist"/>  <!-- удаление чеклиста -->
-<!-- Работа с задачами -->
-<Route Url="/checklists/:checklistId/tasks" Method="GET" Call="GetListTasks"/>  <!-- получение задач для чеклиста -->
-<Route Url="/checklists/:checklistId/tasks" Method="POST" Call="CreateNewTask"/>   <!-- создание новой задачи -->
-<Route Url="/tasks/update" Method="POST" Call="UpdateTasks"/>  <!-- обновление задачи -->
-<Route Url="/tasks/:taskId" Method="DELETE" Call="DeleteTask"/>  <!-- удаление задачи -->
-<Route Url="/tasks/:taskId/complete" Method="PUT" Call="TaskCompleted"/>  
-<!-- Пользователи -->
-<Route Url="/users/update" Method="POST" Call="UpdateUser"/>  <!-- обновление пользователя -->
-<!-- Шаринг досок -->
-<Route Url="/boards/:boardId/share" Method="POST" Call="ShareBoard"/>  <!-- расшаривание доски для других пользователей -->
+<!-- Get all user boards with cards, list and tasks -->
+<Route Url="/boards" Method="GET" Call="GetUserBoards"/> 
+ <!-- Create new board (title, description) -->
+<Route Url="/boards" Method="POST" Call="CreateNewBoard"/>
+ <!--All avalible boards for user -->
+<Route Url="/boards/allowed" Method="GET" Call="GetAllowedBoards"/>
+  <!--Update board data by ID (title, description)-->
+<Route Url="/boards/:boardId" Method="PUT" Call="UpdateBoard"/> 
+ <!-- Delete board by ID -->
+<Route Url="/boards/:boardId" Method="DELETE" Call="DeleteBoard"/> 
+<!-- Sharing boards (board ID, User email, Permissions 1=(admin),2=(write) or 3=(read only) )-->
+<Route Url="/boards/:boardId/share" Method="POST" Call="ShareBoard"/> 
+ <!-- Update sared board (board ID, user email, Permissions) -->
 <Route Url="/boards/:accessId/share" Method="PUT" Call="UpdateSharedBoard"/> 
-<Route Url="/boards/:accessId/share" Method="DELETE" Call="DeleteAccess"/> 
+<!-- Delete acces (access ID) -->
+<Route Url="/boards/:accessId/share" Method="DELETE" Call="DeleteAccess"/>
+<!-- List of shared board by me -->
 <Route Url="/boards/shared-by-me" Method="GET" Call="GetBoardsSharedByMe"/>
 
-<Route Url="/cards/:cardId/share" Method="POST" Call="ShareCard"/>  <!-- расшаривание доски для других пользователей -->
+<!-- Работа с карточками -->
+<!-- Get all cards by board (board ID)-->
+<Route Url="/boards/:boardId/cards" Method="GET" Call="GetBoardCards"/>  
+<!-- Crate new card in board (board ID, title, description)-->
+<Route Url="/boards/:boardId/cards" Method="POST" Call="CreateNewCard"/>
+  <!-- Update card info (card ID, title, description) -->
+<Route Url="/cards/:cardId" Method="PUT" Call="UpdateCard"/>
+  <!-- Delete card by ID -->
+<Route Url="/cards/:cardId" Method="DELETE" Call="DeleteCard"/>
+ <!--All avalible cards for user -->
+<Route Url="/cards/allowed" Method="GET" Call="GetAllowedCards"/> 
+<!-- Sharing card (card ID, User email, Permissions 1=(admin),2=(write) or 3=(read only) )-->
+<Route Url="/cards/:cardId/share" Method="POST" Call="ShareCard"/>
+  <!-- Update sared card (card ID, user email, permissions) -->
 <Route Url="/cards/:accessId/share" Method="PUT" Call="UpdateSharedCard"/> 
+<!-- Delete acces (acces ID) -->
 <Route Url="/cards/:accessId/share" Method="DELETE" Call="DeleteCardAccess"/> 
-<Route Url="/cards/allowed" Method="GET" Call="GetAllowedCards"/>  <!-- получение досок с доступом -->
+
+<!-- Работа с чеклистами -->
+<!-- Get all checklists by card (card ID)-->
+<Route Url="/cards/:cardId/checklists" Method="GET" Call="GetCardLists"/>  
+<!-- Crate new checklist in card (card ID, title, description, task titles in array)-->
+<Route Url="/cards/:cardId/checklists" Method="POST" Call="CreateNewChecklist"/>
+<!-- Update checklist info (checklist ID, title, description, task titles in array)-->
+<Route Url="/checklists/:checklistId" Method="PUT" Call="UpdateChecklist"/>
+  <!-- Delete checklist by ID (checklist ID) -->
+<Route Url="/checklists/:checklistId" Method="DELETE" Call="DeleteChecklist"/> 
+
+<!-- Работа с задачами -->
+<!-- Get all tasks by checklist (cheklist ID)-->
+<Route Url="/checklists/:checklistId/tasks" Method="GET" Call="GetListTasks"/> 
+ <!-- Crate new task in checklist (cheklist ID, title)-->
+<Route Url="/checklists/:checklistId/tasks" Method="POST" Call="CreateNewTask"/> 
+  <!-- Update tasks titles (array [id, title]) -->
+<Route Url="/tasks/update" Method="POST" Call="UpdateTasks"/>
+  <!-- Delete task by ID -->
+<Route Url="/tasks/:taskId" Method="DELETE" Call="DeleteTask"/>
+  <!-- Complet task by ID  -->
+<Route Url="/tasks/:taskId/complete" Method="PUT" Call="TaskCompleted"/>  
+<!-- Update user data (email, user name, first name, last name, password) -->
+<Route Url="/users/update" Method="POST" Call="UpdateUser"/> 
+<!--Check is user have  vlid token   --> 
 <Route Url="/auth" Method="POST" Call="Auth"/>
 <!-- Swagger specs -->
 <Route Url="/_spec" Method="GET" Call="SwaggerSpec" />  
