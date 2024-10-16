@@ -1352,12 +1352,54 @@ ClassMethod GetInfo() As %Status
 /// Retreive all the records of MyApp.ApiHandler
 ClassMethod SwaggerSpec() As %Status
 {
-    Set tSC = ##class(%REST.API).GetWebRESTApplication($NAMESPACE, %request.Application, .swagger)
+   Set tSC = ##class(%REST.API).GetWebRESTApplication($NAMESPACE, %request.Application, .swagger)
     Do swagger.info.%Remove("x-ISC_Namespace")
     Set swagger.basePath = "/myapi"
-    Set swagger.info.title = "InterSystems api"
+    Set swagger.info.title = "InterSystems API"
     Set swagger.info.version = "0.1"
     Set swagger.host = "localhost:52773"
+
+    // Создаем секцию securityDefinitions для токена с учетом Bearer
+    If '$ISOBJECT(swagger.securityDefinitions) {
+        Set swagger.securityDefinitions = ##class(%Library.DynamicObject).%New()
+    }
+    Set bearerAuth = ##class(%Library.DynamicObject).%New()
+    Do bearerAuth.%Set("type", "apiKey")
+    Do bearerAuth.%Set("name", "Authorization")
+    Do bearerAuth.%Set("in", "header")
+    Do bearerAuth.%Set("description", "Enter your token with 'Bearer ' prefix, e.g., 'Bearer YOUR_TOKEN_HERE'")
+    Do swagger.securityDefinitions.%Set("BearerAuth", bearerAuth)
+
+    // Устанавливаем глобальную проверку безопасности для всех маршрутов
+    Set security = ##class(%Library.DynamicArray).%New()
+    Set bearerSecurity = ##class(%Library.DynamicObject).%New()
+    Do bearerSecurity.%Set("BearerAuth", [])
+    Do security.%Push(bearerSecurity)
+    Do swagger.%Set("security", security)
+
+    // Проверяем и создаем структуру paths
+    If '$ISOBJECT(swagger.paths) {
+        Set swagger.paths = ##class(%Library.DynamicObject).%New()
+    }
+
+    // Обработка исключений: для /login, /register и /_spec убираем требование токена
+    Set excludedPaths = "/login,/register,/_spec"
+    For i=1:1:$LENGTH(excludedPaths, ",") {
+        Set path = $PIECE(excludedPaths, ",", i)
+        If '$ISOBJECT(swagger.paths.path) {
+            Set swagger.paths.path = ##class(%Library.DynamicObject).%New()
+        }
+        If '$ISOBJECT(swagger.paths.path.get) {
+            Set swagger.paths.path.get = ##class(%Library.DynamicObject).%New()
+        }
+        If '$ISOBJECT(swagger.paths.path.post) {
+            Set swagger.paths.path.post = ##class(%Library.DynamicObject).%New()
+        }
+        // Убираем требование безопасности для этих маршрутов
+        Do swagger.paths.path.get.%Set("security", [])
+        Do swagger.paths.path.post.%Set("security", [])
+    }
+
     Return ..%ProcessResult($$$OK, swagger)
 }
 
