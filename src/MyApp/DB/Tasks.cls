@@ -1,7 +1,7 @@
 Class MyApp.Tasks Extends %Persistent
 {
 
-Property Title As %String [ Required ];
+Property Title As %String(MAXLEN = 256) [ Required ];
 
 Property IsCompleted As %Boolean;
 
